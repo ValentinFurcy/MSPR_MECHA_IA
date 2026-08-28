@@ -1,0 +1,1 @@
+POC IA Predictive Maintenance 
