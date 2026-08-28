@@ -1,0 +1,121 @@
+services:
+  # --- Stockage brut (données capteurs, simule la remontée IoT) ---
+  influxdb:
+    image: influxdb:2.7
+    container_name: mecha-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_ADMIN_PASSWORD:-mecha_influx_2026}
+      DOCKER_INFLUXDB_INIT_ORG: mecha
+      DOCKER_INFLUXDB_INIT_BUCKET: raw_data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-mecha-dev-token-change-me}
+    volumes:
+      - influx_data:/var/lib/influxdb2
+    ports:
+      - "8086:8086"
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 5s
+      retries: 5
+    networks: [mecha_net]
+
+  # --- Base de données ---
+  postgres:
+    image: postgres:16
+    container_name: mecha-postgres
+    environment:
+      POSTGRES_DB: mecha
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${PG_ADMIN_PASSWORD:-mecha_admin_2026}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d mecha"]
+      interval: 5s
+      retries: 5
+    networks: [mecha_net]
+
+  # --- API IA ---
+  api:
+    image: ${API_IMAGE:-ghcr.io/your-org/mecha-ia-api:latest}
+    container_name: mecha-api
+    environment:
+      PG_HOST: postgres
+      PG_DB: mecha
+      PG_USER: api_rw
+      PG_PASSWORD: api_mecha_2026
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [mecha_net]
+
+  # --- Dashboards temps réel (ops) ---
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mecha-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [mecha_net]
+
+  # --- Dashboard direction (BI) ---
+  metabase:
+    image: metabase/metabase:latest
+    container_name: mecha-metabase
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase_internal
+      MB_DB_PORT: 5432
+      MB_DB_USER: admin
+      MB_DB_PASS: ${PG_ADMIN_PASSWORD:-mecha_admin_2026}
+      MB_DB_HOST: postgres
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [mecha_net]
+
+  # --- Pipeline data science (à la demande, ne démarre pas automatiquement) ---
+  # Usage :
+  #   docker compose run --rm pipeline python scripts/load_sensors_to_influx.py
+  #   docker compose run --rm pipeline python scripts/run_pipeline.py --site site_fr1
+  pipeline:
+    image: ${PIPELINE_IMAGE:-ghcr.io/your-org/mecha-ia-pipeline:latest}
+    container_name: mecha-pipeline
+    environment:
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-mecha-dev-token-change-me}
+      INFLUX_ORG: mecha
+      INFLUX_BUCKET: raw_data
+      API_URL: http://api:8000
+    volumes:
+      - ./outputs:/app/outputs
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      api:
+        condition: service_started
+    profiles: ["tools"]  # ne démarre jamais avec `docker compose up`, seulement via `run`
+    networks: [mecha_net]
+
+networks:
+  mecha_net:
+
+volumes:
+  pg_data:
+  grafana_data:
+  influx_data:

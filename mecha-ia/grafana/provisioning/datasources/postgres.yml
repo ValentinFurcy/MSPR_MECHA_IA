@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: MECHA-Postgres
+    type: postgres
+    url: postgres:5432
+    database: mecha
+    user: grafana_ro
+    secureJsonData:
+      password: grafana_mecha_2026
+    jsonData:
+      database: mecha
+      sslmode: disable
+      postgresVersion: 1600
+    isDefault: true
+    editable: false

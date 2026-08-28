@@ -1,0 +1,18 @@
+# Usage développement local (build depuis les sources, pas depuis le registry) :
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Sans ce fichier, `docker compose up` utilise les images pré-construites sur
+# ghcr.io (comportement de production, utilisé par le déploiement CI/CD).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: mecha-ia-api:dev
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    image: mecha-ia-pipeline:dev

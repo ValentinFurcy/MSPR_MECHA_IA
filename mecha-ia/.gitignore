@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+.ipynb_checkpoints/
+raw/
+outputs/
+pg_data/
+grafana_data/
+influx_data/
+venv/
