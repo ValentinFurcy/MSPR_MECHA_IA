@@ -87,6 +87,7 @@ mecha-ia/
     ├── 08_procedure_entrainement.md
     ├── 09_validation_deploiement.md
     ├── 10_cicd_deploiement.md
+    ├── 11_cartographie_donnees.md
     └── architecture_mecha.png
 ```
 

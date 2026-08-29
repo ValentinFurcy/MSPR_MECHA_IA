@@ -2,6 +2,8 @@
 
 ## 1. Origine des données
 
+Inventaire des sources MECHA, sélection et réduction de l'espace de l'IA : `11_cartographie_donnees.md`.
+
 | Élément | Détail |
 |---|---|
 | **Dataset source** | NASA CMAPSS FD001 (jet engine degradation simulation) |
