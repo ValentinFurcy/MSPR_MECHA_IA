@@ -84,7 +84,9 @@ mecha-ia/
     ├── 05_conduite_changement.md
     ├── 06_documentation_dataset_ml.md
     ├── 07_justification_modele.md
-    ├── 08_validation_deploiement.md
+    ├── 08_procedure_entrainement.md
+    ├── 09_validation_deploiement.md
+    ├── 10_cicd_deploiement.md
     └── architecture_mecha.png
 ```
 
