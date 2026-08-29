@@ -52,7 +52,11 @@ mecha-ia/
 - Versioning des modèles via MLflow (phase pilote)
 - Versioning du dataset via un hash + `dataset_version` dans PostgreSQL
 
-## 5. Limites techniques identifiées
+## 5. Sécurité de l'architecture
+
+Les exigences de **disponibilité, intégrité et confidentialité** (concept DIC) appliquées à cette architecture — healthchecks, fonctionnement dégradé, comptes applicatifs à moindre privilège, exposition réseau, secrets — sont détaillées dans `02_volet_rgpd.md` §4, avec l'état réel de chaque mesure et les actions prioritaires avant production.
+
+## 6. Limites techniques identifiées
 
 | Limite | Impact | Mitigation |
 |---|---|---|

@@ -63,7 +63,11 @@
 | Seuils `risk_level` : RUL > 50 → normal, 15-50 → à surveiller, < 15 → à risque | Seuils métier définis pour ce prototype, à valider avec retours terrain réels (cf. compte-rendu entretien client) |
 | Génération synthétique de repli | Dégradation non linéaire (`cycle^1.5`) + bruit gaussien par capteur, calibrée pour reproduire un pattern de dégradation crédible |
 
-## 4. Limites connues
+## 4. Sécurité des données (DIC)
+
+L'**intégrité** du jeu de données est assurée par les bornes physiques, la winsorisation par machine et la détection de capteur défaillant détaillées en §6, et l'intégrité de l'évaluation par le groupement `GroupKFold` sur `machine_id` (aucune fuite entre apprentissage et test). **Disponibilité** et **confidentialité** relèvent de l'infrastructure : voir `02_volet_rgpd.md` §4.
+
+## 5. Limites connues
 
 - **Origine aéronautique du dataset** : CMAPSS simule des moteurs d'avion, pas des centres d'usinage — l'analogie est une approximation méthodologique assumée, pas une garantie de représentativité physique
 - **Un seul type de machine simulé** : pas de variabilité inter-sites (5 usines MECHA) dans le dataset actuel
@@ -71,7 +75,7 @@
 - **Pas de données réelles opérateur/RH** : conforme à la contrainte RGPD du cahier des charges (aucune donnée personnelle)
 - **Seuils de classification arbitraires** : nécessitent validation métier avant tout usage réel
 
-## 5. Pipeline ML — résumé
+## 6. Pipeline ML — résumé
 
 | Étape | Méthode | Fichier |
 |---|---|---|
@@ -112,7 +116,7 @@ Endpoint API : `GET/POST /alertes-capteurs/{site}`.
 
 Export notebook : `outputs/alertes_capteurs.csv`.
 
-## 6. Résultats obtenus (dataset de repli synthétique)
+## 7. Résultats obtenus (dataset de repli synthétique)
 
 | Modèle | Métrique | Valeur |
 |---|---|---|
@@ -123,7 +127,7 @@ Export notebook : `outputs/alertes_capteurs.csv`.
 
 **Interprétation** : la classe `a_risque` (la plus critique métier) a un rappel de 0.68 — un tiers des situations à risque ne sont pas détectées. C'est une limite à corriger avant tout déploiement réel (ex. rééquilibrage des classes plus poussé, seuils de décision ajustés, features supplémentaires).
 
-## 7. Reproductibilité
+## 8. Reproductibilité
 
 ```bash
 pip install pandas numpy scikit-learn matplotlib jupyter nbconvert --break-system-packages
