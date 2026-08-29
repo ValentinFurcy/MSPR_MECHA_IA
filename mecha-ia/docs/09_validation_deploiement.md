@@ -7,7 +7,7 @@ La validation suit 3 niveaux, du technique au fonctionnel.
 | Niveau | Quoi | Comment | Critère de succès |
 |---|---|---|---|
 | **Technique** | Le code fonctionne | Tests unitaires (pytest) + CI | 100% des tests passent |
-| **ML** | Les modèles prédisent correctement | Métriques sur jeu de test séparé par machine | Recall `a_risque` ≥ 70%, MAE ≤ 25 cycles |
+| **ML** | Les modèles prédisent correctement | Validation croisée `GroupKFold` groupée par machine | Recall `a_risque` ≥ 70%, MAE ≤ 25 cycles |
 | **Fonctionnel** | La chaîne bout en bout produit des alertes | Scénario de test complet | Alerte générée dans Grafana pour une machine `a_risque` |
 
 ## 2. Validation technique
@@ -28,8 +28,8 @@ GitHub Actions exécute à chaque push/PR : lint (ruff) → tests (pytest) → b
 
 ### 3.1 Protocole
 
-- **Split par machine** (pas par ligne) pour éviter la fuite de données
-- 80% train / 20% test
+- **Split par machine** (pas par ligne) pour éviter la fuite de données — 80% train / 20% test
+- **Validation croisée `GroupKFold` 5 folds**, groupée par `machine_id` : chaque machine sert une fois en test. C'est elle qui décide des modèles retenus
 - 6 modèles comparés en classification, 5 en régression (voir `07_justification_modele.md`)
 
 ### 3.2 Résultats obtenus
@@ -42,11 +42,13 @@ GitHub Actions exécute à chaque push/PR : lint (ruff) → tests (pytest) → b
 | `a_surveiller` | 0.58 | 0.68 | 0.62 |
 | `normal` | 0.97 | 0.90 | 0.93 |
 
-**Régression RUL (Random Forest retenu)** : MAE = 18.9 cycles, R² = 0.839
+**Régression RUL (Random Forest retenu)** : MAE = 18.9 cycles, R² = 0.839 (split unique)
+
+**En validation croisée (5 folds)** — chiffres de référence : recall `a_risque` = 0.766 ± 0.037 (pire fold 0.706), MAE = 19.9 ± 0.2 cycles, R² = 0.823. Les deux critères de succès sont tenus.
 
 ### 3.3 Limites identifiées
 
-- Recall `a_risque` = 0.76 → 24% de pannes non détectées (à améliorer par optimisation hyperparamètres)
+- Recall `a_risque` = 0.766 en CV → ~23% de pannes non détectées, et jusqu'à 29% sur le pire fold. Sous le seuil métier de 80% (à améliorer par optimisation hyperparamètres)
 - Données synthétiques/CMAPSS → résultats à revalider sur données réelles
 - Un seul type de machine simulé → généralisation non garantie inter-types
 

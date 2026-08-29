@@ -2,10 +2,13 @@
 
 ## 1. Méthode
 
-6 modèles de classification et 5 modèles de régression ont été entraînés et évalués sur le **même split train/test par machine** (`test_size=0.2`, `random_state=42`), avec les mêmes features.
+6 modèles de classification et 5 modèles de régression, comparés en **deux temps**, à features et hyperparamètres identiques :
+
+1. **Split unique par machine** (`test_size=0.2`, `random_state=42`) — sections 3 et 4. Premier classement, et base des analyses détaillées.
+2. **Validation croisée `GroupKFold` 5 folds** — section 5. Vérifie que ce classement n'est pas un artefact du découpage : c'est **elle qui décide** des modèles retenus.
 
 Notebook : `mecha_maintenance_predictive.ipynb`
-Sorties : `outputs/benchmark_classification.csv`, `outputs/benchmark_regression.csv`
+Sorties : `outputs/benchmark_classification.csv`, `outputs/benchmark_regression.csv`, `outputs/benchmark_cv_classification.csv`, `outputs/benchmark_cv_regression.csv`
 
 ## 2. Critères de décision
 
@@ -75,7 +78,42 @@ Un modèle plus complexe **n'est pas automatiquement meilleur sur la métrique q
 - En phase pilote → **Random Forest** (meilleure MAE, référence)
 - En phase de scaling multi-sites où le temps de réentraînement compte → **basculer sur XGBoost** : perte de 0.2 cycle de MAE compensée par un gain de temps de facteur 17 (permet un réentraînement horaire au lieu de journalier)
 
-## 5. Deux modèles, deux familles — pourquoi c'est cohérent
+## 5. Validation croisée par groupe (`GroupKFold`)
+
+Le split unique ne dit pas si le classement est stable : il peut être un artefact des 10 machines tombées en test.
+
+**Protocole** : `GroupKFold`, 5 folds, groupement par `machine_id` (une machine entière est soit en apprentissage, soit en test — un `KFold` ligne à ligne créerait une fuite), sur **toutes** les machines. Déterministe donc reproductible. Un `assert` vérifie à chaque fold qu'aucune machine n'est des deux côtés.
+
+### Classification (recall `a_risque`)
+
+| Modèle | **Recall `a_risque`** | Écart-type | Pire fold | Accuracy | F1 macro |
+|---|---|---|---|---|---|
+| **Logistic Regression** | **0.766** ✅ | 0.037 | 0.706 | 0.843 | 0.742 |
+| Random Forest | 0.699 | 0.051 | 0.631 | 0.855 | 0.775 |
+| Gradient Boosting | 0.659 | 0.035 | 0.612 | 0.883 | 0.784 |
+| Decision Tree | 0.605 | 0.049 | 0.519 | 0.813 | 0.708 |
+| KNN (k=5) | 0.402 | 0.046 | 0.331 | 0.847 | 0.684 |
+
+### Régression RUL (MAE)
+
+| Modèle | **MAE (cycles)** | Écart-type | Pire fold | RMSE | R² |
+|---|---|---|---|---|---|
+| **Random Forest** | **19.9** ✅ | 0.2 | 20.2 | 25.3 | 0.823 |
+| Gradient Boosting | 20.2 | 0.4 | 20.6 | 25.9 | 0.814 |
+| Linear Regression | 22.1 | 0.3 | 22.4 | 27.4 | 0.792 |
+| Decision Tree | 24.6 | 0.3 | 25.1 | 32.0 | 0.717 |
+
+### Conclusions
+
+- **Les modèles retenus ne changent pas** : Logistic Regression et Random Forest restent premiers.
+- **Le split unique était optimiste sur le RUL** : 18,9 cycles contre 19,9 en CV — c'est 19,9 à annoncer au client.
+- **Le seuil métier de 80 % n'est pas atteint** : 0,766 ± 0,037, pire fold à 0,706. Limite principale de la solution, désormais chiffrée avec son incertitude.
+
+La sélection (section 10 du notebook) s'appuie sur la CV ; le split unique reste utilisé pour les analyses détaillées des sections 11-12, qui ont besoin d'un jeu de test tenu à l'écart. Méthode tracée dans `metadata.json` (bloc `validation`).
+
+> Chiffres issus du jeu de repli synthétique (`seed=42`). **La ligne XGBoost manque** (`xgboost` absent de l'environnement de génération) : la cellule d'export du notebook imprime les tables complètes après exécution.
+
+## 6. Deux modèles, deux familles — pourquoi c'est cohérent
 
 | Tâche | Nature du signal | Modèle adapté |
 |---|---|---|
@@ -84,17 +122,15 @@ Un modèle plus complexe **n'est pas automatiquement meilleur sur la métrique q
 
 Choisir **le bon outil pour chaque tâche** > imposer une famille unique par confort.
 
-## 6. Limites de cette comparaison
+## 7. Limites de cette comparaison
 
 - Résultats sur le **jeu de repli synthétique**. Sur CMAPSS réel, l'ordre peut légèrement bouger — la méthode reste valable
 - Pas d'optimisation d'hyperparamètres : paramètres raisonnables par défaut. Une optimisation dédiée pourrait resserrer les écarts (voir note XGBoost)
-- Pas de validation croisée : 1 seul split. En production, prévoir `GroupKFold(groups=machine_id)`
 - Modèles non supervisés (Isolation Forest) hors scope — pertinents en démarrage à froid sans labels de panne
 
-## 7. Prochaines étapes recommandées
+## 8. Prochaines étapes recommandées
 
 1. Télécharger le vrai CMAPSS FD001, relancer, vérifier la stabilité du classement
 2. **Optimiser XGBoost pour la classification** : GridSearch sur `scale_pos_weight`, `learning_rate`, `max_depth`, seuil de décision
 3. Optimiser hyperparamètres de RF / Logistic Regression retenus
-4. Ajouter validation croisée `GroupKFold` par `machine_id`
-5. Ajouter Isolation Forest (non supervisé, complémentaire, cahier des charges)
+4. Ajouter Isolation Forest (non supervisé, complémentaire, cahier des charges)

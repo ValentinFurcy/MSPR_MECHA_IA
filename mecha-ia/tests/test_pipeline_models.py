@@ -48,6 +48,15 @@ def fake_models_dir(tmp_path):
             "vibration_axe_x": {"mean": float(X["vibration_axe_x"].mean()), "std": float(X["vibration_axe_x"].std())},
             "pression_hydraulique": {"mean": float(X["pression_hydraulique"].mean()), "std": float(X["pression_hydraulique"].std())},
         },
+        "validation": {
+            "methode": "GroupKFold",
+            "n_splits": 5,
+            "groupes": "machine_id",
+            "recall_a_risque_cv": 0.766,
+            "recall_a_risque_cv_ecart_type": 0.037,
+            "mae_cv_cycles": 19.9,
+            "mae_cv_ecart_type": 0.2,
+        },
     }
     (models_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
@@ -66,9 +75,27 @@ def test_metadata_has_required_keys(fake_models_dir):
     required = {
         "features", "sensor_rename", "model_classification", "model_regression",
         "classification_uses_label_encoder", "risk_level_labels", "sensor_alert_threshold",
-        "feature_stats",
+        "feature_stats", "validation",
     }
     assert required.issubset(metadata.keys())
+
+
+def test_metadata_documents_cross_validation(fake_models_dir):
+    """Contrat d'auditabilité : metadata.json doit tracer *comment* les modèles
+    ont été validés (méthode, nombre de folds, variable de groupement), pour
+    qu'un audit qualité puisse rejouer la validation sans relire le notebook.
+
+    Le groupement par `machine_id` n'est pas un détail : c'est lui qui garantit
+    l'absence de fuite de données entre apprentissage et test."""
+    metadata = json.loads((fake_models_dir / "metadata.json").read_text())
+    validation = metadata["validation"]
+
+    assert validation["methode"] == "GroupKFold"
+    assert validation["groupes"] == "machine_id"
+    assert validation["n_splits"] >= 2
+    assert 0.0 <= validation["recall_a_risque_cv"] <= 1.0
+    assert validation["recall_a_risque_cv_ecart_type"] >= 0
+    assert validation["mae_cv_cycles"] >= 0
 
 
 def test_metadata_feature_stats_covers_all_features(fake_models_dir):
