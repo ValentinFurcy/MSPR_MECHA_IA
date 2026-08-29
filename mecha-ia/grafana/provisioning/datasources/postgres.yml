@@ -1,6 +1,9 @@
 apiVersion: 1
 datasources:
   - name: MECHA-Postgres
+    # uid fixe : les dashboards provisionnés y font référence explicitement.
+    # Sans lui, Grafana en génère un aléatoire et les dashboards ne trouvent plus leur source.
+    uid: mecha_postgres
     type: postgres
     url: postgres:5432
     database: mecha

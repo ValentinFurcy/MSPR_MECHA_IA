@@ -1,0 +1,636 @@
+{
+  "uid": "mecha-maintenance",
+  "title": "MECHA — Maintenance prédictive",
+  "description": "Priorisation des interventions et suivi des alertes pour les équipes maintenance et production.",
+  "tags": [
+    "mecha",
+    "maintenance"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "label": "Site",
+        "type": "custom",
+        "query": "site_fr1,site_fr2,site_fr3,site_es1,site_es2",
+        "current": {
+          "selected": true,
+          "text": "site_fr1",
+          "value": "site_fr1"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "site_fr1",
+            "value": "site_fr1"
+          },
+          {
+            "selected": false,
+            "text": "site_fr2",
+            "value": "site_fr2"
+          },
+          {
+            "selected": false,
+            "text": "site_fr3",
+            "value": "site_fr3"
+          },
+          {
+            "selected": false,
+            "text": "site_es1",
+            "value": "site_es1"
+          },
+          {
+            "selected": false,
+            "text": "site_es2",
+            "value": "site_es2"
+          }
+        ],
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "État du parc",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Machines à risque",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Machines à surveiller",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"Machines à surveiller\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_surveiller'",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Alertes machine non acquittées",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"Alertes actives\"\nFROM ${site}.alertes\nWHERE acquittee = FALSE",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Alertes capteur non acquittées",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"Alertes capteur\"\nFROM ${site}.alertes_capteur\nWHERE acquittee = FALSE",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Priorisation des interventions",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Machines à intervenir — triées par RUL croissant",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT machine_id AS \"Machine\",\n       rul_predit AS \"RUL prédit (cycles)\",\n       risk_level_predit AS \"Niveau\",\n       capteur_principal AS \"Capteur à inspecter\",\n       \"timestamp\" AS \"Dernière prédiction\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit IN ('a_risque', 'a_surveiller')\nORDER BY rul_predit ASC",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RUL prédit (cycles)"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 5
+                    },
+                    {
+                      "color": "green",
+                      "value": 15
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "title": "Alertes",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Alertes machine actives",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT \"timestamp\" AS \"Horodatage\",\n       machine_id AS \"Machine\",\n       niveau AS \"Niveau\",\n       message AS \"Message\"\nFROM ${site}.alertes\nWHERE acquittee = FALSE\nORDER BY \"timestamp\" DESC\nLIMIT 50",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "table",
+      "title": "Alertes capteur (cause instrumentale, pas mécanique)",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT detecte_at AS \"Détectée le\",\n       machine_id AS \"Machine\",\n       capteur AS \"Capteur suspect\",\n       nb_aberrations AS \"Valeurs aberrantes\"\nFROM ${site}.alertes_capteur\nWHERE acquittee = FALSE\nORDER BY detecte_at DESC\nLIMIT 50",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "title": "Tendance",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "RUL moyen prédit sur le site",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT date_trunc('hour', \"timestamp\") AS time,\n       avg(rul_predit) AS \"RUL moyen (cycles)\"\nFROM ${site}.predictions\nWHERE $__timeFilter(\"timestamp\")\nGROUP BY 1\nORDER BY 1",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+{
+  "uid": "mecha-pilotage",
+  "title": "MECHA — Pilotage industriel multi-sites",
+  "description": "Vue consolidée des 5 usines pour la Direction industrielle.",
+  "tags": [
+    "mecha",
+    "pilotage"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Comparaison inter-sites",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "bargauge",
+      "title": "Machines à risque par site",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 'site_fr1' AS \"Site\", count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, risk_level_predit\n      FROM site_fr1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'\nUNION ALL\nSELECT 'site_fr2' AS \"Site\", count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, risk_level_predit\n      FROM site_fr2.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'\nUNION ALL\nSELECT 'site_fr3' AS \"Site\", count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, risk_level_predit\n      FROM site_fr3.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'\nUNION ALL\nSELECT 'site_es1' AS \"Site\", count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, risk_level_predit\n      FROM site_es1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'\nUNION ALL\nSELECT 'site_es2' AS \"Site\", count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, risk_level_predit\n      FROM site_es2.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Alertes actives par site",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 'site_fr1' AS \"Site\", count(*) AS \"Alertes actives\"\nFROM site_fr1.alertes WHERE acquittee = FALSE\nUNION ALL\nSELECT 'site_fr2' AS \"Site\", count(*) AS \"Alertes actives\"\nFROM site_fr2.alertes WHERE acquittee = FALSE\nUNION ALL\nSELECT 'site_fr3' AS \"Site\", count(*) AS \"Alertes actives\"\nFROM site_fr3.alertes WHERE acquittee = FALSE\nUNION ALL\nSELECT 'site_es1' AS \"Site\", count(*) AS \"Alertes actives\"\nFROM site_es1.alertes WHERE acquittee = FALSE\nUNION ALL\nSELECT 'site_es2' AS \"Site\", count(*) AS \"Alertes actives\"\nFROM site_es2.alertes WHERE acquittee = FALSE",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "table",
+      "title": "Synthèse du parc par site",
+      "datasource": {
+        "type": "postgres",
+        "uid": "mecha_postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 'site_fr1' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_fr2' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr2.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_fr3' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr3.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_es1' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_es1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_es2' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_es2.predictions ORDER BY machine_id, \"timestamp\" DESC) d",
+          "datasource": {
+            "type": "postgres",
+            "uid": "mecha_postgres"
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+apiVersion: 1
+providers:
+  - name: MECHA
+    orgId: 1
+    folder: MECHA
+    type: file
+    disableDeletion: false
+    # Les dashboards sont versionnés dans Git : toute modification faite dans
+    # l'interface Grafana est écrasée au redémarrage. C'est volontaire —
+    # le dépôt reste la source de vérité.
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

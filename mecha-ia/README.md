@@ -40,7 +40,11 @@ docker compose run --rm pipeline python scripts/load_sensors_to_influx.py
 # 6. Lancer le pipeline (InfluxDB -> prédiction -> PostgreSQL)
 docker compose run --rm pipeline python scripts/run_pipeline.py --site site_fr1
 
-# 7. Vérifier
+# 7. (optionnel) Charger un jeu de démonstration pour voir les dashboards
+#    sans exécuter tout le pipeline
+docker compose exec -T postgres psql -U admin -d mecha < scripts/seed_demo.sql
+
+# 8. Vérifier
 curl http://localhost:8000/health        # API
 curl http://localhost:8000/predictions/site_fr1
 open http://localhost:3000               # Grafana (admin/admin)
@@ -60,6 +64,7 @@ mecha-ia/
 ├── scripts/
 │   ├── load_sensors_to_influx.py   # Simule l'envoi capteurs -> InfluxDB
 │   ├── run_pipeline.py             # InfluxDB -> nettoyage -> prédiction -> API
+│   ├── seed_demo.sql               # Jeu de démonstration pour les dashboards
 │   └── requirements.txt
 ├── src/
 │   └── api/
@@ -67,7 +72,11 @@ mecha-ia/
 │       └── requirements.txt
 ├── grafana/
 │   └── provisioning/
-│       └── datasources/postgres.yml
+│       ├── datasources/postgres.yml
+│       └── dashboards/           # Dashboards versionnés (chargés au démarrage)
+│           ├── dashboards.yml
+│           ├── maintenance_predictive.json
+│           └── pilotage_industriel.json
 ├── .github/
 │   └── workflows/ci.yml           # CI GitHub Actions
 ├── mecha_maintenance_predictive.ipynb  # Notebook ML (entraînement + export modèles)
@@ -159,7 +168,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 | InfluxDB | 8086 | http://localhost:8086 | Stockage brut capteurs |
 | PostgreSQL | 5432 | — | Données nettoyées + résultats |
 | API FastAPI | 8000 | http://localhost:8000/docs | Exposition résultats IA |
-| Grafana | 3000 | http://localhost:3000 | Dashboards ops |
+| Grafana | 3000 | http://localhost:3000 | Dashboards ops (2 dashboards provisionnés, dossier MECHA) |
 | Metabase | 3001 | http://localhost:3001 | Dashboards direction |
 | Pipeline | — | (à la demande via `docker compose run`) | Ingestion + inférence |
 
