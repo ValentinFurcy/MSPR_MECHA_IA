@@ -21,24 +21,30 @@ déjà générées comme si elles provenaient des capteurs, avec des timestamps 
 
 ## Démarrage rapide
 
+**Prérequis** : Docker + Docker Compose, et Python 3.10+ en local pour exécuter
+le notebook (le dossier `outputs/` n'est pas versionné — les jeux de données et
+les modèles `.joblib` doivent être générés avant de lancer le pipeline).
+
 ```bash
-# 1. Cloner le repo
-git clone https://github.com/votre-equipe/mecha-ia.git && cd mecha-ia
+# 1. Cloner le repo (le projet vit dans le sous-dossier mecha-ia/)
+git clone https://github.com/ValentinFurcy/MSPR_MECHA_IA.git
+cd MSPR_MECHA_IA/mecha-ia
 
 # 2. Copier le fichier d'environnement
 cp .env.example .env
 
-# 3. Lancer la stack (Postgres, InfluxDB, API, Grafana, Metabase)
-docker compose up -d
-
-# 4. Générer les données + modèles (si pas déjà fait)
+# 3. Générer les données + modèles dans outputs/ (obligatoire : non versionné)
+pip install -r scripts/requirements.txt matplotlib jupyter
 jupyter nbconvert --to notebook --execute --inplace mecha_maintenance_predictive.ipynb
 
+# 4. Lancer la stack (Postgres, InfluxDB, API, Grafana, Metabase)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
 # 5. Simuler l'envoi des capteurs vers InfluxDB
-docker compose run --rm pipeline python scripts/load_sensors_to_influx.py
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pipeline python scripts/load_sensors_to_influx.py
 
 # 6. Lancer le pipeline (InfluxDB -> prédiction -> PostgreSQL)
-docker compose run --rm pipeline python scripts/run_pipeline.py --site site_fr1
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pipeline python scripts/run_pipeline.py --site site_fr1
 
 # 7. (optionnel) Charger un jeu de démonstration pour voir les dashboards
 #    sans exécuter tout le pipeline
@@ -52,11 +58,38 @@ open http://localhost:3001               # Metabase (setup au 1er lancement)
 open http://localhost:8086               # InfluxDB UI (admin / mecha_influx_2026)
 ```
 
+> **Astuce** : pour éviter de répéter les deux `-f`, exporte-les une fois pour
+> toute la session. Attention au séparateur — `:` sous Linux/macOS, `;` sous
+> Windows (y compris en Git Bash, car le binaire `docker` reste natif) :
+> ```bash
+> export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml    # Linux / macOS
+> export COMPOSE_FILE="docker-compose.yml;docker-compose.dev.yml"  # Git Bash sous Windows
+> ```
+> ```powershell
+> $env:COMPOSE_FILE = "docker-compose.yml;docker-compose.dev.yml"  # PowerShell
+> ```
+
+### Sous Windows (PowerShell)
+
+Trois commandes diffèrent :
+
+```powershell
+# Étape 7 — PowerShell ne supporte pas la redirection `<`
+Get-Content scripts/seed_demo.sql | docker compose exec -T postgres psql -U admin -d mecha
+
+# Étape 8 — `open` est une commande macOS
+start http://localhost:3000
+
+# `curl` est un alias d'Invoke-WebRequest : utiliser curl.exe pour le vrai curl
+curl.exe http://localhost:8000/health
+```
+
 ## Structure du projet
 
 ```
-mecha-ia/
+MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
 ├── docker-compose.yml              # Stack complète (Influx, Postgres, API, Grafana, Metabase, pipeline)
+├── docker-compose.dev.yml          # Override local : build depuis les sources au lieu de ghcr.io
 ├── Dockerfile.api                  # Image API FastAPI
 ├── Dockerfile.pipeline             # Image scripts d'ingestion/inférence
 ├── docker/
@@ -65,11 +98,14 @@ mecha-ia/
 │   ├── load_sensors_to_influx.py   # Simule l'envoi capteurs -> InfluxDB
 │   ├── run_pipeline.py             # InfluxDB -> nettoyage -> prédiction -> API
 │   ├── seed_demo.sql               # Jeu de démonstration pour les dashboards
+│   ├── deploy.sh                   # Script de déploiement appelé par la CI
 │   └── requirements.txt
 ├── src/
+│   ├── cleaning.py                 # Règles de nettoyage partagées notebook/pipeline
 │   └── api/
 │       ├── main.py                 # API REST (FastAPI)
 │       └── requirements.txt
+├── tests/                          # pytest (cleaning, outliers, API, modèles)
 ├── grafana/
 │   └── provisioning/
 │       ├── datasources/postgres.yml
@@ -80,11 +116,14 @@ mecha-ia/
 ├── .github/
 │   └── workflows/ci.yml           # CI GitHub Actions
 ├── mecha_maintenance_predictive.ipynb  # Notebook ML (entraînement + export modèles)
-├── outputs/                        # Générés par le notebook
+├── outputs/                        # Générés par le notebook — NON versionné (.gitignore)
 │   ├── mecha_dataset_raw.csv
 │   ├── mecha_dataset.csv
 │   ├── predictions.csv
-│   └── models/                     # Modèles entraînés exportés (.joblib)
+│   ├── alertes_capteurs.csv
+│   ├── benchmark_classification.csv
+│   ├── benchmark_regression.csv
+│   └── models/                     # Modèles entraînés exportés (.joblib + metadata.json)
 └── docs/                           # Documentation
     ├── 01_choix_techniques.md
     ├── 02_volet_rgpd.md
@@ -157,8 +196,14 @@ Par défaut, les packages GHCR liés à un repo privé sont privés. Le script d
 
 ### Développement local (sans passer par le registry)
 
+`docker-compose.yml` seul référence les images `ghcr.io/<org>/mecha-ia-{api,pipeline}`
+publiées par la CI : c'est le comportement de production. En local, ces images
+n'existent pas — il faut systématiquement ajouter l'override qui build depuis
+les sources, y compris pour `docker compose run pipeline` :
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pipeline python scripts/run_pipeline.py --site site_fr1
 ```
 
 
