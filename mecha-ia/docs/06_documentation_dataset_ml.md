@@ -62,7 +62,7 @@ Inventaire des sources MECHA, sélection et réduction de l'espace de l'IA : `11
 |---|---|
 | 1 cycle CMAPSS = 1 heure de fonctionnement | Convention arbitraire pour obtenir un timestamp exploitable ; à ajuster si données réelles disponibles |
 | Unités des capteurs (°C, bar, mm/s...) | Approximations pédagogiques — CMAPSS ne fournit pas d'unité physique réelle |
-| Seuils `risk_level` : RUL > 50 → normal, 15-50 → à surveiller, < 15 → à risque | Seuils métier définis pour ce prototype, à valider avec retours terrain réels (cf. compte-rendu entretien client) |
+| Seuils `risk_level` à l'entraînement : RUL > 50 → normal, 15-50 → à surveiller, < 15 → à risque | Seuils métier du prototype initial. **L'exploitation (alertes + dashboards) applique désormais 24/8**, cf. `docs/12_solution_applicative.md` §3.2 — à réaligner au prochain réentraînement |
 | Génération synthétique de repli | Dégradation non linéaire (`cycle^1.5`) + bruit gaussien par capteur, calibrée pour reproduire un pattern de dégradation crédible |
 
 ## 4. Sécurité des données (DIC)

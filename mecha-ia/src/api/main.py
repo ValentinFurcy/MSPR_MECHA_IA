@@ -18,6 +18,15 @@ app = FastAPI(title="MECHA IA — API Prédictions", version="1.0")
 
 SITES = ["site_fr1", "site_fr2", "site_fr3", "site_es1", "site_es2"]
 
+# Seuils de RUL (1 cycle = 1 heure). Doivent rester alignés sur la fonction
+# shared.niveau_depuis_rul() de docker/init.sql, qui pilote l'affichage Grafana.
+#   RUL <= 8  -> a_risque      (dont RUL <= 4 : intervention avant fin de poste)
+#   RUL <= 24 -> a_surveiller
+#   au-delà   -> normal
+SEUIL_CRITIQUE = 4
+SEUIL_A_RISQUE = 8
+SEUIL_A_SURVEILLER = 24
+
 def get_conn():
     return psycopg2.connect(
         host=os.getenv("PG_HOST", "postgres"),
@@ -88,18 +97,20 @@ def insert_prediction(site: str, pred: PredictionIn):
           pred.modele_classification, pred.modele_regression, pred.capteur_principal))
     new_id = cur.fetchone()[0]
 
-    # Auto-alerte, 2 niveaux :
-    #   - "critique" : RUL <= 4h (1 cycle = 1h, hypothèse documentée) — intervention
-    #     nécessaire avant la fin du poste en cours.
-    #   - "urgent" : risk_level = a_risque mais RUL > 4h — à planifier, pas immédiat.
-    # RUL <= 4 implique toujours a_risque (seuil a_risque = RUL < 15), donc ces
-    # deux cas sont mutuellement exclusifs.
+    # Auto-alerte, 2 niveaux, décidés par le RUL prédit et lui seul :
+    #   - "critique" : RUL <= 4h — intervention avant la fin du poste en cours.
+    #   - "urgent"   : RUL <= 8h (seuil a_risque) — à planifier, pas immédiat.
+    # risk_level_predit n'entre plus dans la décision : il vient du classifieur,
+    # qui contredit le régresseur sur ~13 % des lignes (class_weight="balanced"
+    # le pousse à sur-prédire a_risque). On alertait donc sur des machines dont
+    # le RUL affiché disait « à surveiller ». La colonne reste stockée pour la
+    # traçabilité du modèle, mais l'exploitation suit le RUL.
     niveau_alerte = None
     capteur_suffix = f" — capteur principal : {pred.capteur_principal}" if pred.capteur_principal else ""
-    if pred.rul_predit <= 4:
+    if pred.rul_predit <= SEUIL_CRITIQUE:
         niveau_alerte = "critique"
-        message = f"Intervention nécessaire dans les 4 prochaines heures (RUL estimé : {pred.rul_predit}h){capteur_suffix}"
-    elif pred.risk_level_predit == "a_risque":
+        message = f"Intervention nécessaire dans les {SEUIL_CRITIQUE} prochaines heures (RUL estimé : {pred.rul_predit}h){capteur_suffix}"
+    elif pred.rul_predit <= SEUIL_A_RISQUE:
         niveau_alerte = "urgent"
         message = f"RUL prédit : {pred.rul_predit} cycles — intervention à planifier{capteur_suffix}"
 

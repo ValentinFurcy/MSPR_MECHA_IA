@@ -91,7 +91,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'",
+          "rawSql": "SELECT count(*) AS \"Machines à risque\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         shared.niveau_depuis_rul(rul_predit) AS risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_risque'",
           "datasource": {
             "type": "postgres",
             "uid": "mecha_postgres"
@@ -155,7 +155,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT count(*) AS \"Machines à surveiller\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_surveiller'",
+          "rawSql": "SELECT count(*) AS \"Machines à surveiller\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         shared.niveau_depuis_rul(rul_predit) AS risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit = 'a_surveiller'",
           "datasource": {
             "type": "postgres",
             "uid": "mecha_postgres"
@@ -351,7 +351,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT machine_id AS \"Machine\",\n       rul_predit AS \"RUL prédit (cycles)\",\n       risk_level_predit AS \"Niveau\",\n       capteur_principal AS \"Capteur à inspecter\",\n       \"timestamp\" AS \"Dernière prédiction\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit IN ('a_risque', 'a_surveiller')\nORDER BY rul_predit ASC",
+          "rawSql": "SELECT machine_id AS \"Machine\",\n       rul_predit AS \"RUL prédit (cycles)\",\n       risk_level_predit AS \"Niveau\",\n       capteur_principal AS \"Capteur à inspecter\",\n       \"timestamp\" AS \"Dernière prédiction\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         shared.niveau_depuis_rul(rul_predit) AS risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit IN ('a_risque', 'a_surveiller')\nORDER BY rul_predit ASC",
           "datasource": {
             "type": "postgres",
             "uid": "mecha_postgres"

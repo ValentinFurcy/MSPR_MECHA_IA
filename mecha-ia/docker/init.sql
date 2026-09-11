@@ -121,3 +121,37 @@ END $$;
 ALTER ROLE grafana_ro SET search_path TO site_fr1, site_fr2, site_fr3, site_es1, site_es2, shared;
 ALTER ROLE metabase_ro SET search_path TO site_fr1, site_fr2, site_fr3, site_es1, site_es2, shared;
 ALTER ROLE api_rw SET search_path TO site_fr1, shared;
+
+-- ============================================================
+-- Niveau de risque affiché : dérivé du RUL, et de lui seul
+-- ============================================================
+-- risk_level_predit (table predictions) vient du classifieur, rul_predit du
+-- régresseur : deux modèles indépendants qui se contredisent sur ~13 % des
+-- lignes (le classifieur, entraîné avec class_weight="balanced", sur-prédit
+-- volontairement a_risque). Afficher « a_risque » à côté d'un RUL de 20 est
+-- incompréhensible en atelier.
+--
+-- Les dashboards passent donc par cette fonction plutôt que par la colonne.
+-- La sortie du classifieur reste stockée telle quelle : elle sert à tracer le
+-- comportement du modèle et à comparer les deux approches (cf. docs/07).
+--
+-- Bornes métier (1 cycle = 1 heure), alignées sur les seuils d'alerte de
+-- l'API (SEUIL_A_RISQUE / SEUIL_A_SURVEILLER dans src/api/main.py) :
+--   RUL <= 8 -> a_risque | 9..24 -> a_surveiller | > 24 -> normal
+-- NB : le notebook entraîne encore le classifieur sur les bornes 15/50
+-- (risk_level_bins de metadata.json). Sans incidence ici — ni l'affichage ni
+-- les alertes n'utilisent plus sa sortie — mais à réaligner au réentraînement.
+CREATE OR REPLACE FUNCTION shared.niveau_depuis_rul(rul INTEGER)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    SELECT CASE
+        WHEN rul IS NULL      THEN NULL
+        WHEN rul <= 8         THEN 'a_risque'
+        WHEN rul <= 24        THEN 'a_surveiller'
+        ELSE                       'normal'
+    END;
+$$;
+
+GRANT EXECUTE ON FUNCTION shared.niveau_depuis_rul(INTEGER) TO grafana_ro, metabase_ro, api_rw;

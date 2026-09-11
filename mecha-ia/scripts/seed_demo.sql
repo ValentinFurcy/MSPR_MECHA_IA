@@ -51,7 +51,7 @@ VALUES
 
 -- --- Alertes machine (site_fr1) ---
 -- Reproduit ce que génère l'API à l'insertion (cf. src/api/main.py) :
--- RUL <= 4 -> critique, sinon a_risque -> urgent.
+-- RUL <= 4 -> critique, RUL <= 8 -> urgent (cf. src/api/main.py).
 INSERT INTO site_fr1.alertes (machine_id, "timestamp", niveau, message, acquittee)
 VALUES
   ('MECHA-USI-001', NOW() - INTERVAL '20 minutes', 'critique',

@@ -32,23 +32,30 @@ Trois composants, trois responsabilités : le **pipeline** produit les prédicti
 
 ### 3.1 Règles de transformation des résultats IA
 
-Le modèle produit un RUL et une classe de risque. L'API en dérive les alertes, à l'insertion :
+Le modèle produit un RUL et une classe de risque. L'API dérive les alertes **du RUL seul**, à l'insertion :
 
 | Condition | Alerte générée | Délai d'action attendu |
 |---|---|---|
 | `rul_predit <= 4` | **critique** | Avant la fin du poste (4 h) |
-| `risk_level_predit = 'a_risque'` et `rul_predit > 4` | **urgent** | À planifier |
+| `rul_predit <= 8` | **urgent** | À planifier |
 | Sinon | aucune | — |
 
-Les deux cas sont exclusifs : le seuil `a_risque` est RUL < 15, donc RUL ≤ 4 implique toujours `a_risque`.
+**Pourquoi le RUL et pas la classe.** Classification et régression sont deux
+modèles indépendants : ils se contredisent sur 13,2 % des prédictions (246
+lignes sur 1865). Le classifieur, entraîné avec `class_weight="balanced"`,
+sur-prédit volontairement `a_risque` — jamais l'inverse. Faire dépendre les
+alertes de sa sortie produisait des alertes sur des machines dont le RUL
+affiché disait « à surveiller », incompréhensible en atelier. La sortie du
+classifieur reste stockée en base pour la traçabilité du modèle, mais
+l'exploitation (alertes et dashboards) suit le RUL.
 
 ### 3.2 Seuils
 
 | Seuil | Valeur | Où | Origine |
 |---|---|---|---|
-| `normal` / `a_surveiller` | RUL = 50 cycles | `metadata.json` (`risk_level_bins`) | Convention métier, à valider terrain |
-| `a_surveiller` / `a_risque` | RUL = 15 cycles | `metadata.json` | Idem |
-| Alerte critique | RUL ≤ 4 | `src/api/main.py` | Durée d'un poste d'atelier |
+| `normal` / `a_surveiller` | RUL = 24 cycles | `shared.niveau_depuis_rul()` (`docker/init.sql`), `SEUIL_A_SURVEILLER` (`src/api/main.py`) | Convention métier, à valider terrain |
+| `a_surveiller` / `a_risque` | RUL = 8 cycles | Idem, `SEUIL_A_RISQUE` | Idem |
+| Alerte critique | RUL ≤ 4 | `SEUIL_CRITIQUE` (`src/api/main.py`) | Durée d'un poste d'atelier |
 | Capteur suspect | 3 valeurs aberrantes | `src/cleaning.py`, `metadata.json` | Évite de traiter un défaut instrumental comme une panne mécanique |
 
 ### 3.3 Fréquence de mise à jour
@@ -105,3 +112,17 @@ Le sélecteur `Site` en haut du dashboard maintenance bascule entre les 5 usines
 - **Pas de retour terrain saisissable** : la boucle d'amélioration décrite dans `05_conduite_changement.md` suppose un formulaire qui n'existe pas encore.
 - **Metabase non provisionné** : le service démarre vierge, ses tableaux de bord direction sont à construire manuellement.
 - **Jeu de démonstration figé** : `scripts/seed_demo.sql` sert à montrer les écrans sans exécuter tout le pipeline. Les dashboards ont été vérifiés sur ce jeu (Grafana 13.2, PostgreSQL 16, 11 requêtes exécutées sous le compte `grafana_ro`), pas encore sur un flux issu du pipeline complet.
+
+### 3.4 Où vivent les seuils
+
+Deux définitions, volontairement séparées et à garder alignées :
+
+- **`shared.niveau_depuis_rul(rul)`** (`docker/init.sql`) — le niveau affiché
+  dans Grafana. Les dashboards ne lisent plus la colonne `risk_level_predit`.
+- **`SEUIL_CRITIQUE` / `SEUIL_A_RISQUE` / `SEUIL_A_SURVEILLER`** (`src/api/main.py`)
+  — la génération d'alertes.
+
+Le notebook, lui, entraîne encore le classifieur sur les bornes historiques
+15/50 (`risk_level_bins` de `metadata.json`). Sans incidence sur l'exploitation
+— plus rien n'utilise sa sortie — mais à réaligner au prochain réentraînement
+si l'on veut que la classe prédite reste comparable au niveau affiché.

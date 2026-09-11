@@ -134,13 +134,53 @@ def test_insert_prediction_generates_alert_when_a_risque(mock_db, client):
     payload = {
         "machine_id": "MECHA-USI-001",
         "cycle_number": 42,
-        "rul_predit": 10,
+        "rul_predit": 7,
         "risk_level_predit": "a_risque",
     }
     response = client.post("/predictions/site_fr1", json=payload)
 
     assert response.json()["alerte_generee"] is True
     assert response.json()["niveau_alerte"] == "urgent"
+
+
+def test_alerte_suit_le_rul_pas_le_classifieur(mock_db, client):
+    """Le niveau d'alerte est decide par le RUL seul.
+
+    Les deux cas ou classifieur et regresseur se contredisent :
+      - classifieur "a_risque" mais RUL = 20 -> aucune alerte (RUL > 8) ;
+      - classifieur "normal" mais RUL = 3    -> alerte critique quand meme.
+    """
+    _, mock_cursor = mock_db
+    mock_cursor.fetchone.return_value = (1,)
+
+    faux_positif = {
+        "machine_id": "MECHA-USI-001", "cycle_number": 1,
+        "rul_predit": 20, "risk_level_predit": "a_risque",
+    }
+    response = client.post("/predictions/site_fr1", json=faux_positif)
+    assert response.json()["alerte_generee"] is False
+
+    faux_negatif = {
+        "machine_id": "MECHA-USI-002", "cycle_number": 1,
+        "rul_predit": 3, "risk_level_predit": "normal",
+    }
+    response = client.post("/predictions/site_fr1", json=faux_negatif)
+    assert response.json()["niveau_alerte"] == "critique"
+
+
+def test_bornes_des_seuils_alerte(mock_db, client):
+    """Bornes exactes : 4 -> critique, 8 -> urgent, 9 -> plus d'alerte."""
+    _, mock_cursor = mock_db
+    mock_cursor.fetchone.return_value = (1,)
+
+    attendus = {4: "critique", 5: "urgent", 8: "urgent", 9: None, 24: None}
+    for rul, niveau in attendus.items():
+        payload = {
+            "machine_id": "MECHA-USI-001", "cycle_number": 1,
+            "rul_predit": rul, "risk_level_predit": "a_risque",
+        }
+        response = client.post("/predictions/site_fr1", json=payload)
+        assert response.json()["niveau_alerte"] == niveau, f"RUL={rul}"
 
 
 def test_insert_prediction_generates_critique_alert_under_4h(mock_db, client):
@@ -173,7 +213,7 @@ def test_insert_prediction_critique_threshold_boundary(mock_db, client):
 
     payload_5h = {
         "machine_id": "MECHA-USI-001", "cycle_number": 1,
-        "rul_predit": 5, "risk_level_predit": "a_risque",
+        "rul_predit": 5, "risk_level_predit": "normal",  # le classifieur ne compte pas
     }
     response = client.post("/predictions/site_fr1", json=payload_5h)
     assert response.json()["niveau_alerte"] == "urgent"
