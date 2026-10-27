@@ -3,7 +3,7 @@
 En production, ce rôle est joué par la chaîne Capteurs -> MQTT -> Kafka ->
 InfluxDB (voir architecture). Cette chaîne reste théorique dans ce prototype
 (cf. docs/01_choix_techniques.md). Ce script en tient lieu : il relit les
-données déjà générées (mecha_dataset_raw.csv, sortie brute du notebook) et
+données brutes livrées (data/mecha_dataset_raw.csv, exportées par le notebook) et
 les injecte dans InfluxDB comme si elles venaient réellement des capteurs,
 avec des timestamps réels et incrémentaux.
 
@@ -26,14 +26,14 @@ INFLUX_TOKEN = os.getenv("INFLUX_TOKEN", "mecha-dev-token-change-me")
 INFLUX_ORG = os.getenv("INFLUX_ORG", "mecha")
 INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "raw_data")
 
-RAW_CSV = Path("outputs/mecha_dataset_raw.csv")
+RAW_CSV = Path("data/mecha_dataset_raw.csv")
 
 
 def main(speed: float, site: str):
     if not RAW_CSV.exists():
         raise FileNotFoundError(
-            f"{RAW_CSV} introuvable — lance d'abord le notebook "
-            "(mecha_maintenance_predictive.ipynb) pour le générer."
+            f"{RAW_CSV} introuvable — lance la commande depuis mecha-ia/ "
+            "(le fichier est versionné dans data/)."
         )
 
     df = pd.read_csv(RAW_CSV)

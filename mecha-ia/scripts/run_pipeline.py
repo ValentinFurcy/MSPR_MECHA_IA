@@ -2,8 +2,9 @@
 
 Étapes :
     1. Lit les dernières lectures capteurs par machine depuis InfluxDB
-    2. Applique les mêmes règles de nettoyage que le notebook (bornes physiques
-       + winsorisation), et détecte les capteurs suspects (>= 3 aberrations)
+    2. Applique les bornes physiques (la winsorisation du notebook demande
+       l'historique complet d'une machine, indisponible sur un seul relevé)
+       et détecte les capteurs suspects (>= 3 aberrations)
     3. Charge les modèles entraînés (outputs/models/) et prédit risk_level + RUL
     4. Envoie les résultats à l'API (qui écrit dans PostgreSQL et génère les
        alertes automatiquement)
@@ -25,6 +26,7 @@ from influxdb_client import InfluxDBClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.cleaning import capteur_principal, clean_and_bound_simple
+from src.decision import predire_avec_seuil
 
 INFLUX_URL = os.getenv("INFLUX_URL", "http://localhost:8086")
 INFLUX_TOKEN = os.getenv("INFLUX_TOKEN", "mecha-dev-token-change-me")
@@ -95,8 +97,12 @@ def main(site: str):
 
     X = df[features].fillna(0)
 
-    # Prédictions
-    if le is not None:
+    # Prédictions — même règle de décision que le notebook (seuil sur P(a_risque))
+    classes = le.classes_ if le is not None else clf.classes_
+    seuil = meta.get("seuil_decision_a_risque")
+    if seuil is not None:
+        risk_pred = predire_avec_seuil(clf.predict_proba(X), classes, seuil)
+    elif le is not None:
         risk_pred = le.inverse_transform(clf.predict(X))
     else:
         risk_pred = clf.predict(X)

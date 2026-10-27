@@ -138,9 +138,8 @@ ALTER ROLE api_rw SET search_path TO site_fr1, shared;
 -- Bornes métier (1 cycle = 1 heure), alignées sur les seuils d'alerte de
 -- l'API (SEUIL_A_RISQUE / SEUIL_A_SURVEILLER dans src/api/main.py) :
 --   RUL <= 8 -> a_risque | 9..24 -> a_surveiller | > 24 -> normal
--- NB : le notebook entraîne encore le classifieur sur les bornes 15/50
--- (risk_level_bins de metadata.json). Sans incidence ici — ni l'affichage ni
--- les alertes n'utilisent plus sa sortie — mais à réaligner au réentraînement.
+-- Le notebook entraîne le classifieur sur ces mêmes bornes (risk_level_bins
+-- de metadata.json).
 CREATE OR REPLACE FUNCTION shared.niveau_depuis_rul(rul INTEGER)
 RETURNS TEXT
 LANGUAGE sql

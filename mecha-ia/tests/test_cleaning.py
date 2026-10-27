@@ -28,7 +28,7 @@ def test_rul_positive():
 def test_risk_level_no_missing():
     df = make_sample_data()
     df["RUL"] = df.groupby("machine_id")["cycle_number"].transform("max") - df["cycle_number"]
-    df["risk_level"] = pd.cut(df["RUL"], bins=[-1, 15, 50, np.inf],
+    df["risk_level"] = pd.cut(df["RUL"], bins=[-1, 8, 24, np.inf],
                                labels=["a_risque", "a_surveiller", "normal"])
     assert df["risk_level"].isna().sum() == 0
 
