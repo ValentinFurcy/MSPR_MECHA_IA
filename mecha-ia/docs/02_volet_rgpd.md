@@ -50,7 +50,7 @@ Trois exigences : **D**isponibilité, **I**ntégrité, **C**onfidentialité. Ét
 | Redémarrage automatique des conteneurs | Absent | `restart: unless-stopped` à ajouter |
 | Sauvegarde des volumes de données | Absent | `pg_data`, `influx_data` |
 | Rétention maîtrisée du brut (90 j) | Cible | InfluxDB |
-| Redondance | Absent — VPS unique, point de défaillance unique | Cible : réplication PostgreSQL |
+| Redondance | Absent — hôte Docker unique, point de défaillance unique | Cible : réplication PostgreSQL |
 
 ### 4.2 Intégrité — la donnée est exacte et non altérée
 

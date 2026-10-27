@@ -86,6 +86,9 @@ curl.exe http://localhost:8000/health
 
 ## Structure du projet
 
+Le workflow CI est à la racine du dépôt (`.github/workflows/ci.yml`), le reste
+du projet dans `mecha-ia/` :
+
 ```
 MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
 ├── docker-compose.yml              # Stack complète (Influx, Postgres, API, Grafana, Metabase, pipeline)
@@ -98,7 +101,6 @@ MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
 │   ├── load_sensors_to_influx.py   # Simule l'envoi capteurs -> InfluxDB
 │   ├── run_pipeline.py             # InfluxDB -> nettoyage -> prédiction -> API
 │   ├── seed_demo.sql               # Jeu de démonstration pour les dashboards
-│   ├── deploy.sh                   # Script de déploiement appelé par la CI
 │   └── requirements.txt
 ├── src/
 │   ├── cleaning.py                 # Règles de nettoyage partagées notebook/pipeline
@@ -113,8 +115,6 @@ MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
 │           ├── dashboards.yml
 │           ├── maintenance_predictive.json
 │           └── pilotage_industriel.json
-├── .github/
-│   └── workflows/ci.yml           # CI GitHub Actions
 ├── mecha_maintenance_predictive.ipynb  # Notebook ML (entraînement + export modèles)
 ├── outputs/                        # Générés par le notebook — NON versionné (.gitignore)
 │   ├── mecha_dataset_raw.csv
@@ -139,65 +139,25 @@ MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
     └── architecture_mecha.png
 ```
 
-## CI/CD — Déploiement automatique
+## Intégration continue (CI)
 
-Le pipeline `.github/workflows/ci.yml` s'exécute à chaque push sur `main` :
+Le workflow `.github/workflows/ci.yml` (à la racine du dépôt) s'exécute à chaque
+push et pull request sur `main` :
 
 ```
-1. Tests (lint + pytest + validation docker-compose)
+1. test  : lint (ruff) + tests (pytest) + validation docker-compose
         ↓
-2. Build images api & pipeline → push sur ghcr.io
-        ↓
-3. SSH sur le VPS → clone/pull → docker compose pull → up -d
+2. build : construction des images api & pipeline
+           (publiées sur ghcr.io uniquement lors d'un push sur main)
 ```
 
-### Secrets GitHub à configurer
-
-**Settings → Secrets and variables → Actions** du repo :
-
-| Secret | Exemple | Description |
-|---|---|---|
-| `VPS_HOST` | `51.68.XX.XX` | IP ou domaine du VPS |
-| `VPS_USER` | `deploy` | Utilisateur SSH sur le VPS |
-| `VPS_SSH_KEY` | `-----BEGIN OPENSSH...` | Clé privée SSH (voir génération ci-dessous) |
-| `VPS_PORT` | `22` | Port SSH (optionnel, 22 par défaut) |
-| `VPS_APP_DIR` | `/home/deploy/mecha-ia` | Dossier cible sur le VPS |
-
-`GITHUB_TOKEN` est fourni automatiquement par GitHub Actions (push vers GHCR + login sur le VPS) — rien à configurer.
-
-### Générer la clé SSH de déploiement
-
-```bash
-# En local
-ssh-keygen -t ed25519 -f deploy_key -N ""
-
-# Copier la clé PUBLIQUE sur le VPS
-ssh-copy-id -i deploy_key.pub deploy@VOTRE_VPS
-
-# Coller le contenu de deploy_key (clé PRIVÉE) dans le secret GitHub VPS_SSH_KEY
-cat deploy_key
-```
-
-### Premier déploiement — prérequis sur le VPS
-
-```bash
-# Sur le VPS : installer Docker + Docker Compose
-curl -fsSL https://get.docker.com | sh
-
-# Créer le dossier parent (le clone se fait automatiquement par le pipeline)
-mkdir -p /home/deploy/mecha-ia
-```
-
-Le `.env` n'est **jamais** commité ni déployé automatiquement — au premier déploiement, le script copie `.env.example` en `.env` sur le VPS. **Il faut ensuite éditer ce fichier manuellement sur le VPS** (mots de passe de prod, jamais ceux du repo).
-
-### Rendre les images GHCR accessibles au VPS
-
-Par défaut, les packages GHCR liés à un repo privé sont privés. Le script de déploiement gère l'authentification automatiquement via `GITHUB_TOKEN`. Si le repo est public, tu peux aussi rendre les packages publics (Settings du package sur GitHub) pour simplifier.
+Aucun secret à configurer : `GITHUB_TOKEN` est fourni automatiquement par
+GitHub Actions pour la publication sur GHCR.
 
 ### Développement local (sans passer par le registry)
 
 `docker-compose.yml` seul référence les images `ghcr.io/<org>/mecha-ia-{api,pipeline}`
-publiées par la CI : c'est le comportement de production. En local, ces images
+publiées par la CI. En local, ces images
 n'existent pas — il faut systématiquement ajouter l'override qui build depuis
 les sources, y compris pour `docker compose run pipeline` :
 

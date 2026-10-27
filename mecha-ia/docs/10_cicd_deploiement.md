@@ -1,87 +1,46 @@
-# CI/CD — Déploiement VPS
+# Intégration continue (CI)
 
-## Pipeline (`.github/workflows/ci.yml`)
+## Pipeline (`.github/workflows/ci.yml`, à la racine du dépôt)
 
 ```
-push/PR sur main
+push / pull request sur main
       │
       ▼
    [test] ── lint (ruff) + tests (pytest) + validation docker-compose
       │
-      ▼ (uniquement push sur main)
-[build-and-push] ── build images api + pipeline → push sur ghcr.io
-      │
       ▼
-   [deploy] ── SSH sur le VPS → git clone/pull → docker compose pull/up
+   [build] ── build des images api + pipeline
+              (push sur ghcr.io uniquement lors d'un push sur main)
 ```
 
-Sur une pull request : seul le job `test` s'exécute (pas de build/déploiement).
-Sur un push vers `main` : les 3 jobs s'enchaînent.
+Le projet vit dans le sous-dossier `mecha-ia/` : le workflow y exécute toutes
+ses commandes (`defaults.run.working-directory: mecha-ia`), et le build Docker
+utilise `mecha-ia/` comme contexte.
 
-## Secrets GitHub à configurer
+| Événement | `test` | `build` | Publication GHCR |
+|---|---|---|---|
+| Pull request vers `main` | Oui | Oui | Non |
+| Push sur `main` | Oui | Oui | Oui |
 
-**Repo → Settings → Secrets and variables → Actions → New repository secret**
+Le build s'exécute aussi sur les pull requests : une image qui ne se construit
+plus est détectée avant la fusion, pas après.
 
-| Secret | Valeur | Exemple |
+## Images produites
+
+| Image | Dockerfile | Tags |
 |---|---|---|
-| `VPS_HOST` | IP ou domaine du VPS | `51.83.XX.XX` |
-| `VPS_USER` | Utilisateur SSH | `deploy` |
-| `VPS_SSH_KEY` | Clé privée SSH (format PEM, sans passphrase) | contenu de `~/.ssh/id_ed25519` |
-| `VPS_PORT` | Port SSH (optionnel, défaut 22) | `22` |
-| `VPS_APP_DIR` | Dossier cible sur le VPS | `/opt/mecha-ia` |
+| `ghcr.io/<owner>/mecha-ia-api` | `Dockerfile.api` | `latest`, `<sha du commit>` |
+| `ghcr.io/<owner>/mecha-ia-pipeline` | `Dockerfile.pipeline` | `latest`, `<sha du commit>` |
 
-`GITHUB_TOKEN` est fourni automatiquement par GitHub Actions — aucune configuration nécessaire pour l'authentification GHCR côté build.
+Le nom du propriétaire est converti en minuscules : Docker refuse les
+majuscules dans un nom d'image.
 
-## Prérequis sur le VPS
+Aucun secret à configurer : `GITHUB_TOKEN` est fourni automatiquement par
+GitHub Actions pour la publication sur GHCR.
 
-```bash
-# 1. Installer Docker + Docker Compose
-curl -fsSL https://get.docker.com | sh
+## Exécuter la solution
 
-# 2. Créer un utilisateur de déploiement (si pas déjà fait)
-sudo useradd -m -s /bin/bash deploy
-sudo usermod -aG docker deploy
-
-# 3. Générer une paire de clés SSH dédiée (sur ta machine, pas sur le VPS)
-ssh-keygen -t ed25519 -f mecha_deploy_key -N ""
-# → mecha_deploy_key      : va dans le secret VPS_SSH_KEY
-# → mecha_deploy_key.pub  : à ajouter dans ~deploy/.ssh/authorized_keys sur le VPS
-
-# 4. Créer le dossier cible
-sudo mkdir -p /opt/mecha-ia && sudo chown deploy:deploy /opt/mecha-ia
-```
-
-Le premier déploiement clone automatiquement le repo dans `VPS_APP_DIR` — pas besoin de le cloner manuellement.
-
-## Le fichier `.env` sur le VPS
-
-Le script (`scripts/deploy.sh`) copie `.env.example` vers `.env` **uniquement s'il n'existe pas déjà**. À éditer manuellement après le tout premier déploiement pour mettre de vrais mots de passe :
-
-```bash
-ssh deploy@<VPS_HOST>
-cd /opt/mecha-ia
-nano .env   # remplacer les mots de passe par défaut
-docker compose up -d   # relancer avec les nouvelles valeurs
-```
-
-## Comment ça fonctionne (résumé)
-
-1. **Build & push** : les images `api` et `pipeline` sont construites et poussées sur `ghcr.io/<owner>/mecha-ia-api` et `mecha-ia-pipeline`, taguées `latest` et `<sha du commit>`
-2. **Déploiement** : le script `scripts/deploy.sh` est copié sur le VPS puis exécuté :
-   - clone ou met à jour le repo (`git pull`)
-   - s'authentifie sur `ghcr.io`
-   - `docker compose pull` récupère les nouvelles images (via `API_IMAGE`/`PIPELINE_IMAGE`)
-   - `docker compose up -d` redémarre uniquement les conteneurs modifiés
-   - nettoie les anciennes images
-   - vérifie que l'API répond (`/health`)
-
-## Différence dev / prod
-
-| | Local (dev) | VPS (prod) |
+| | Local (dev) | Images publiées |
 |---|---|---|
-| Commande | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` | `docker compose up -d` (géré par le pipeline) |
-| Images api/pipeline | Construites depuis les sources | Pré-construites, tirées de GHCR |
-
-## Test manuel du déploiement (sans attendre un push)
-
-Sur GitHub : **Actions → CI/CD — MECHA IA → Run workflow** (si `workflow_dispatch` est ajouté), ou simplement pousser un commit sur `main`.
+| Commande | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` | `docker compose up -d` avec `API_IMAGE` / `PIPELINE_IMAGE` pointant vers GHCR |
+| Images api/pipeline | Construites depuis les sources | Tirées de GHCR |
