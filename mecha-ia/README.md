@@ -22,8 +22,8 @@ déjà générées comme si elles provenaient des capteurs, avec des timestamps 
 ## Démarrage rapide
 
 **Prérequis** : Docker + Docker Compose, et Python 3.10+ en local pour exécuter
-le notebook (le dossier `outputs/` n'est pas versionné — les jeux de données et
-les modèles `.joblib` doivent être générés avant de lancer le pipeline).
+le notebook. Les jeux de données sont versionnés dans `data/` ; les modèles
+`.joblib` (dossier `outputs/`, non versionné) sont produits par le notebook.
 
 ```bash
 # 1. Cloner le repo (le projet vit dans le sous-dossier mecha-ia/)
@@ -33,7 +33,7 @@ cd MSPR_MECHA_IA/mecha-ia
 # 2. Copier le fichier d'environnement
 cp .env.example .env
 
-# 3. Générer les données + modèles dans outputs/ (obligatoire : non versionné)
+# 3. Entraîner les modèles (outputs/models/) et régénérer data/
 pip install -r scripts/requirements.txt matplotlib jupyter
 jupyter nbconvert --to notebook --execute --inplace mecha_maintenance_predictive.ipynb
 
@@ -104,10 +104,11 @@ MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
 │   └── requirements.txt
 ├── src/
 │   ├── cleaning.py                 # Règles de nettoyage partagées notebook/pipeline
+│   ├── decision.py                 # Règle de décision du classifieur (seuil sur P(a_risque))
 │   └── api/
 │       ├── main.py                 # API REST (FastAPI)
 │       └── requirements.txt
-├── tests/                          # pytest (cleaning, outliers, API, modèles)
+├── tests/                          # pytest (nettoyage, règle de décision, API, export des modèles)
 ├── grafana/
 │   └── provisioning/
 │       ├── datasources/postgres.yml
@@ -115,14 +116,14 @@ MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
 │           ├── dashboards.yml
 │           ├── maintenance_predictive.json
 │           └── pilotage_industriel.json
-├── mecha_maintenance_predictive.ipynb  # Notebook ML (entraînement + export modèles)
+├── mecha_maintenance_predictive.ipynb  # Notebook ML (préparation, entraînement, évaluation, export)
+├── data/                           # Jeux de données livrés (versionnés, régénérés par le notebook)
+│   ├── mecha_dataset_raw.csv       # Brut, rejoué comme flux capteurs
+│   ├── mecha_dataset.csv           # Nettoyé et adapté au vocabulaire MECHA
+│   └── predictions.csv             # Prédictions sur les machines de test
 ├── outputs/                        # Générés par le notebook — NON versionné (.gitignore)
-│   ├── mecha_dataset_raw.csv
-│   ├── mecha_dataset.csv
-│   ├── predictions.csv
+│   ├── benchmark_*.csv             # Comparaisons de modèles, modes d'entraînement
 │   ├── alertes_capteurs.csv
-│   ├── benchmark_classification.csv
-│   ├── benchmark_regression.csv
 │   └── models/                     # Modèles entraînés exportés (.joblib + metadata.json)
 └── docs/                           # Documentation
     ├── 01_choix_techniques.md
@@ -136,7 +137,9 @@ MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
     ├── 09_validation_deploiement.md
     ├── 10_cicd_deploiement.md
     ├── 11_cartographie_donnees.md
-    └── architecture_mecha.png
+    ├── 12_solution_applicative.md
+    ├── architecture_mecha.png
+    └── architecture_mecha.py       # Génère le schéma d'architecture
 ```
 
 ## Intégration continue (CI)
@@ -183,8 +186,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pipeline
 |---|---|---|
 | `GET` | `/health` | État de l'API + connexion DB |
 | `GET` | `/predictions/{site}` | Dernières prédictions |
-| `POST` | `/predictions/{site}` | Insérer une prédiction (+ auto-alerte si `a_risque`) |
+| `POST` | `/predictions/{site}` | Insérer une prédiction (+ alerte automatique si RUL ≤ 8) |
 | `GET` | `/alertes/{site}` | Alertes actives |
+| `GET` / `POST` | `/alertes-capteurs/{site}` | Alertes capteur défaillant |
 
 Sites valides : `site_fr1`, `site_fr2`, `site_fr3`, `site_es1`, `site_es2`
 
@@ -192,7 +196,7 @@ Sites valides : `site_fr1`, `site_fr2`, `site_fr3`, `site_es1`, `site_es2`
 
 | Tâche | Modèle | Métrique clé | Résultat |
 |---|---|---|---|
-| Classification état machine | Logistic Regression | Recall `a_risque` | 0.762 |
-| Prédiction RUL | Random Forest Regressor | MAE | 18.9 cycles |
+| Classification état machine | Logistic Regression (seuil de décision 0,35) | Rappel `a_risque` / faux positifs (test) | 0,867 / 9,0 % |
+| Prédiction RUL | Random Forest Regressor | MAE (validation croisée) | 19,9 cycles |
 
 Justification complète : `docs/07_justification_modele.md`

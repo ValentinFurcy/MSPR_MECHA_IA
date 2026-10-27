@@ -9,9 +9,9 @@
 
 La solution surveille en continu les machines de production et signale **avant qu'une panne survienne** les situations anormales. Elle fournit :
 
-- Un **score de risque** par machine (0 à 100)
-- Une **alerte** quand le seuil critique est franchi
-- Une **estimation du temps restant** avant intervention nécessaire
+- Une **estimation du temps restant** avant intervention nécessaire (RUL, en heures)
+- Un **niveau de risque** par machine : normal, à surveiller, à risque
+- Une **alerte** (urgent ou critique) quand le RUL passe sous les seuils
 - Un **tableau de bord** temps réel accessible depuis navigateur
 
 ## 2. Ce qu'elle ne fait pas
@@ -26,51 +26,50 @@ La solution surveille en continu les machines de production et signale **avant q
 ### 3.1 Consultation du dashboard (Grafana)
 1. Se connecter à `http://mecha-ia.local:3000`
 2. Sélectionner son site et sa ligne
-3. Consulter la carte des machines : **vert** (OK), **orange** (à surveiller), **rouge** (intervention recommandée)
+3. Consulter la liste *Machines à intervenir*, triée du RUL le plus faible au plus élevé : **vert** (normal), **orange** (à surveiller), **rouge** (à risque)
 
 ### 3.2 Réception d'une alerte
-- Notification par mail + affichage dans le dashboard
-- Contenu : machine concernée, RUL estimé, niveau (urgent/critique), **capteur principal** (celui qui explique le plus la dégradation), historique 24h
+- Affichage dans le dashboard (rafraîchi chaque minute). La notification par mail n'est pas disponible dans le prototype
+- Contenu : machine concernée, RUL estimé, niveau (urgent/critique), **capteur principal** (le capteur le plus éloigné de son comportement habituel)
 - **Action attendue** : alerte "critique" → intervention dans les 4h ; alerte "urgent" → à planifier
 
 **Le "capteur principal"** indique quel capteur présente la valeur la plus anormale par rapport au comportement habituel de la machine — c'est le premier endroit à inspecter. Exemple : `capteur_principal = vibration_axe_x` signifie que la vibration mesurée s'écarte le plus de la normale, davantage que la température ou la pression.
 
 ### 3.3 Retour terrain (important pour améliorer la solution)
-Après chaque alerte, saisir dans le dashboard :
+Après chaque alerte, transmettre au référent IA du site :
 - **Alerte pertinente ?** (oui/non)
-- **Cause identifiée** (menu déroulant)
+- **Cause identifiée**
 - **Action réalisée**
 
-Ces retours permettent au modèle de s'améliorer dans le temps.
+Ces retours sont intégrés au réentraînement mensuel du modèle. Un formulaire de saisie dans l'outil est prévu en évolution.
 
 ## 4. Comment interpréter les résultats
 
-La solution ne calcule pas un score arbitraire : elle prédit un **RUL** (temps
-restant estimé avant intervention nécessaire, en heures) et un **niveau de
-risque**. Deux niveaux d'alerte en découlent :
+La solution prédit un **RUL** (temps restant estimé avant intervention
+nécessaire, en heures). Le niveau de risque affiché et les alertes en découlent :
 
-| RUL prédit | Niveau d'alerte | Signification | Action |
+| RUL prédit | Niveau affiché | Alerte | Action |
 |---|---|---|---|
-| > 50h | — (normal) | Fonctionnement normal | Aucune |
-| 15h – 50h | — (à surveiller) | Dérive possible | Contrôle visuel prochain tour |
-| 5h – 15h | 🟠 **urgent** | Anomalie probable, pas immédiate | Planifier l'intervention |
-| ≤ 4h | 🔴 **critique** | Intervention nécessaire avant fin de poste | Intervention **dans les 4h** |
+| > 24h | normal | — | Aucune |
+| 9h – 24h | à surveiller | — | Contrôle visuel au prochain tour |
+| 5h – 8h | à risque | 🟠 **urgent** | Planifier l'intervention |
+| ≤ 4h | à risque | 🔴 **critique** | Intervention **dans les 4h** |
 
 **Pourquoi 4h précisément** : ça correspond à la durée d'un poste de travail
 en atelier — une alerte "critique" signifie concrètement "à traiter avant la
 fin de votre poste actuel", pas "dans les jours qui viennent".
 
 **Important** : le RUL prédit est une **estimation**, pas une certitude.
-Sur le jeu de test, le modèle se trompe en moyenne de ~19h (MAE). Une
+En validation, le modèle se trompe en moyenne d'environ 20h (MAE). Une
 alerte "critique" à RUL=2h peut en réalité correspondre à une machine qui
 tiendra encore plusieurs heures — c'est pourquoi l'inspection humaine reste
 la décision finale.
 
 ## 5. Limites et conditions d'usage
 
-- **Machines couvertes** : uniquement les centres d'usinage équipés IoT (à date : 15 machines sur site pilote)
+- **Machines couvertes** : uniquement les centres d'usinage équipés IoT (phase pilote : 3 machines d'un site France)
 - **Historique nécessaire** : le modèle a besoin de 30 jours de données stables pour une nouvelle machine
-- **Fiabilité dégradée** si un capteur est HS : un bandeau d'avertissement s'affiche
+- **Fiabilité dégradée** si un capteur est HS : il apparaît dans le panneau *Alertes capteur*
 - **Pas d'usage en mode dégradé réseau** : les alertes peuvent être retardées
 
 ## 6. Qui contacter ?
@@ -85,10 +84,10 @@ la décision finale.
 ## 7. FAQ
 
 **Q : Dois-je regarder le dashboard en permanence ?**
-Non. Les alertes vous parviennent par mail. Un point de synthèse en début de poste suffit.
+Non. Un point en début de poste et à la mi-poste suffit : une alerte critique laisse 4h pour intervenir.
 
 **Q : Que faire si je ne suis pas d'accord avec une alerte ?**
-Marquer « alerte non pertinente » avec commentaire. Le modèle s'ajustera.
+Le signaler au référent IA avec un commentaire. Le retour est pris en compte au réentraînement suivant.
 
 **Q : Mes données personnelles sont-elles collectées ?**
 Non. La solution ne trace que les machines, pas les opérateurs.

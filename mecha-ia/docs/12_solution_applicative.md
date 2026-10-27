@@ -41,9 +41,10 @@ Le modèle produit un RUL et une classe de risque. L'API dérive les alertes **d
 | Sinon | aucune | — |
 
 **Pourquoi le RUL et pas la classe.** Classification et régression sont deux
-modèles indépendants : ils se contredisent sur 13,2 % des prédictions (246
-lignes sur 1865). Le classifieur, entraîné avec `class_weight="balanced"`,
-sur-prédit volontairement `a_risque` — jamais l'inverse. Faire dépendre les
+modèles indépendants : ramenés aux mêmes seuils, ils se contredisent sur
+21,5 % des prédictions de test (401 lignes sur 1865). Le classifieur est
+volontairement réglé pour sur-détecter `a_risque` (seuil de décision abaissé à
+0,35 pour tenir un rappel ≥ 80 %, cf. `07_justification_modele.md` §6). Faire dépendre les
 alertes de sa sortie produisait des alertes sur des machines dont le RUL
 affiché disait « à surveiller », incompréhensible en atelier. La sortie du
 classifieur reste stockée en base pour la traçabilité du modèle, mais
@@ -58,7 +59,19 @@ l'exploitation (alertes et dashboards) suit le RUL.
 | Alerte critique | RUL ≤ 4 | `SEUIL_CRITIQUE` (`src/api/main.py`) | Durée d'un poste d'atelier |
 | Capteur suspect | 3 valeurs aberrantes | `src/cleaning.py`, `metadata.json` | Évite de traiter un défaut instrumental comme une panne mécanique |
 
-### 3.3 Fréquence de mise à jour
+### 3.3 Où vivent les seuils
+
+Deux définitions, volontairement séparées et à garder alignées :
+
+- **`shared.niveau_depuis_rul(rul)`** (`docker/init.sql`) — le niveau affiché
+  dans Grafana. Les dashboards ne lisent plus la colonne `risk_level_predit`.
+- **`SEUIL_CRITIQUE` / `SEUIL_A_RISQUE` / `SEUIL_A_SURVEILLER`** (`src/api/main.py`)
+  — la génération d'alertes.
+
+Le notebook entraîne le classifieur sur ces mêmes bornes (`risk_level_bins` de
+`metadata.json`).
+
+### 3.4 Fréquence de mise à jour
 
 | Élément | Fréquence |
 |---|---|
@@ -82,16 +95,16 @@ Quatre formalismes, chacun versionné dans Git :
 Exemple de règle métier exprimée en SQL — priorisation des interventions, panneau principal du dashboard maintenance :
 
 ```sql
-SELECT machine_id, rul_predit, risk_level_predit, capteur_principal
+SELECT machine_id, rul_predit, risk_level_predit AS niveau, capteur_principal
 FROM (SELECT DISTINCT ON (machine_id) machine_id, "timestamp", rul_predit,
-             risk_level_predit, capteur_principal
+             shared.niveau_depuis_rul(rul_predit) AS risk_level_predit, capteur_principal
       FROM ${site}.predictions
       ORDER BY machine_id, "timestamp" DESC) d
 WHERE risk_level_predit IN ('a_risque', 'a_surveiller')
 ORDER BY rul_predit ASC
 ```
 
-Le `DISTINCT ON` ne retient que la dernière prédiction connue de chaque machine : un technicien doit voir l'état courant du parc, pas l'historique.
+Le niveau est recalculé depuis le RUL par `shared.niveau_depuis_rul()`, et le `DISTINCT ON` ne retient que la dernière prédiction connue de chaque machine : un technicien doit voir l'état courant du parc, pas l'historique.
 
 ## 5. Écrans et usages par rôle
 
@@ -107,22 +120,8 @@ Le sélecteur `Site` en haut du dashboard maintenance bascule entre les 5 usines
 
 ## 6. Limites
 
-- **Pas d'acquittement depuis l'interface** : les colonnes `acquittee` / `acquittee_par` existent en base, mais Grafana est en lecture seule. L'acquittement passe aujourd'hui par l'API. Un écran de saisie reste à construire.
-- **Pas de notification sortante** : ni mail ni SMS. Les alertes décrites dans `04_guide_utilisateur.md` supposent ce canal, qui n'est pas implémenté.
+- **Pas d'acquittement depuis l'interface** : les colonnes `acquittee` / `acquittee_par` existent en base, mais Grafana est en lecture seule et l'API n'expose pas encore d'acquittement. Un écran de saisie reste à construire.
+- **Pas de notification sortante** : ni mail ni SMS. Les alertes se consultent dans le dashboard (`04_guide_utilisateur.md`).
 - **Pas de retour terrain saisissable** : la boucle d'amélioration décrite dans `05_conduite_changement.md` suppose un formulaire qui n'existe pas encore.
 - **Metabase non provisionné** : le service démarre vierge, ses tableaux de bord direction sont à construire manuellement.
-- **Jeu de démonstration figé** : `scripts/seed_demo.sql` sert à montrer les écrans sans exécuter tout le pipeline. Les dashboards ont été vérifiés sur ce jeu (Grafana 13.2, PostgreSQL 16, 11 requêtes exécutées sous le compte `grafana_ro`), pas encore sur un flux issu du pipeline complet.
-
-### 3.4 Où vivent les seuils
-
-Deux définitions, volontairement séparées et à garder alignées :
-
-- **`shared.niveau_depuis_rul(rul)`** (`docker/init.sql`) — le niveau affiché
-  dans Grafana. Les dashboards ne lisent plus la colonne `risk_level_predit`.
-- **`SEUIL_CRITIQUE` / `SEUIL_A_RISQUE` / `SEUIL_A_SURVEILLER`** (`src/api/main.py`)
-  — la génération d'alertes.
-
-Le notebook, lui, entraîne encore le classifieur sur les bornes historiques
-15/50 (`risk_level_bins` de `metadata.json`). Sans incidence sur l'exploitation
-— plus rien n'utilise sa sortie — mais à réaligner au prochain réentraînement
-si l'on veut que la classe prédite reste comparable au niveau affiché.
+- **Un seul site alimenté par le pipeline** : la chaîne complète (rejeu capteurs → InfluxDB → pipeline → API → PostgreSQL → Grafana) a été vérifiée sur `site_fr1` (Grafana 13.3, PostgreSQL 16 : 50 prédictions, 30 alertes dont 6 critiques, 11 requêtes de dashboard exécutées sans erreur via la datasource `grafana_ro`). `scripts/seed_demo.sql` permet de montrer les écrans des 5 sites sans exécuter le pipeline.

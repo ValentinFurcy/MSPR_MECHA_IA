@@ -6,134 +6,145 @@ Inventaire des sources MECHA, sélection et réduction de l'espace de l'IA : `11
 
 | Élément | Détail |
 |---|---|
-| **Dataset source** | NASA CMAPSS FD001 (jet engine degradation simulation) |
-| **Lien** | https://www.kaggle.com/datasets/behrad3d/nasa-cmaps |
-| **Type** | Public, run-to-failure (séquences de dégradation jusqu'à panne) |
-| **Adaptation** | Renommage vocabulaire métier MECHA + calcul de labels dérivés |
-| **Repli si absent** | Génération synthétique (structure identique : dégradation progressive par cycle, bruit capteur) — utilisée automatiquement par le notebook si `raw/train_FD001.txt` n'est pas fourni |
+| **Source prévue** | NASA CMAPSS FD001 (simulation de dégradation de moteurs) — https://www.kaggle.com/datasets/behrad3d/nasa-cmaps |
+| **Source effectivement utilisée** | **Jeu synthétique** de même structure, généré par le notebook (`generate_synthetic_cmapss`, seed 42). Le notebook bascule automatiquement sur CMAPSS si `raw/train_FD001.txt` est fourni |
+| **Type** | Run-to-failure : chaque machine est suivie cycle par cycle jusqu'à la panne |
+| **Adaptation** | Renommage au vocabulaire MECHA, identifiant `MECHA-USI-XXX`, horodatage, calcul du RUL et du niveau de risque |
 
-**Pourquoi CMAPSS ?** C'est le seul type de dataset public permettant de couvrir **à la fois** la classification (état machine) et la prédiction de RUL, car il contient des séquences complètes jusqu'à la panne — contrairement aux datasets "snapshot" (ex. AI4I 2020) qui ne permettent que la classification.
+**Pourquoi une structure CMAPSS ?** C'est le seul type de jeu public qui couvre **à la fois** la classification (état machine) et la prédiction de RUL, car il contient des séquences complètes jusqu'à la panne — contrairement aux jeux « instantanés » (ex. AI4I 2020) qui ne permettent que la classification.
 
-## 2. Dictionnaire de données
+## 2. Fichiers livrés (`data/`)
 
-### Fichier `mecha_dataset_raw.csv` (brut, avant nettoyage)
+Les trois fichiers sont régénérés à l'identique par le notebook (seed fixe).
 
-| Colonne | Type | Origine | Description |
-|---|---|---|---|
-| `machine_id` | int | CMAPSS `unit_id` | Identifiant numérique brut de la machine |
-| `cycle_number` | int | CMAPSS `cycle` | Compteur de cycles d'usage |
-| `op_setting_1..3` | float | CMAPSS | Réglages opérationnels (conservés tels quels) |
-| `sensor_1..21` | float | CMAPSS | Mesures capteurs brutes, non renommées |
+| Fichier | Contenu | Volume |
+|---|---|---|
+| `mecha_dataset_raw.csv` | Jeu brut, avant nettoyage. Rejoué comme flux capteurs par `scripts/load_sensors_to_influx.py` | 9 200 lignes, 26 colonnes |
+| `mecha_dataset.csv` | Jeu nettoyé et adapté, utilisé pour l'apprentissage | 9 200 lignes, 15 colonnes |
+| `predictions.csv` | Prédictions sur les 10 machines de test, au format de la table PostgreSQL `predictions` | 1 865 lignes |
 
-### Fichier `mecha_dataset.csv` (nettoyé, adapté)
+## 3. Dictionnaire de données
 
-| Colonne | Type | Unité (approximative) | Description |
-|---|---|---|---|
-| `machine_id` | string | — | Format `MECHA-USI-XXX` |
-| `timestamp` | datetime | — | Simulé : 1 cycle = 1 heure (hypothèse) |
-| `cycle_number` | int | cycles | Compteur d'usage depuis mise en service |
-| `temperature_moteur` | float | °C | Renommé depuis `sensor_2` |
-| `temperature_lubrifiant` | float | °C | Renommé depuis `sensor_3` |
-| `temperature_carter` | float | °C | Renommé depuis `sensor_4` |
-| `pression_hydraulique` | float | bar | Renommé depuis `sensor_7` |
-| `vitesse_broche` | float | tr/min | Renommé depuis `sensor_9` |
-| `vibration_axe_x` | float | mm/s | Renommé depuis `sensor_11` |
-| `vibration_axe_y` | float | mm/s | Renommé depuis `sensor_12` |
-| `debit_refroidissement` | float | L/min | Renommé depuis `sensor_14` |
-| `humidite_ambiante` | float | % | Renommé depuis `sensor_15` |
-| `indice_usure_outil` | float | indice (0-100) | Renommé depuis `sensor_21` |
-| `RUL` | int | cycles restants | Calculé : `cycle_max(machine) - cycle_number` |
-| `risk_level` | catégoriel | normal / a_surveiller / a_risque | Calculé par seuillage du RUL |
-
-### Fichier `predictions.csv` (sortie modèle)
+### `mecha_dataset_raw.csv` (brut)
 
 | Colonne | Type | Description |
 |---|---|---|
-| `machine_id` | string | Identifiant machine |
-| `timestamp` | datetime | Horodatage |
-| `cycle_number` | int | Cycle |
-| `rul_predit` | int | RUL estimé par le modèle de régression |
-| `risk_level_predit` | catégoriel | Classe prédite par le modèle de classification |
-| `risk_level_reel` | catégoriel | Classe réelle (pour évaluation) |
+| `machine_id` | int | Identifiant numérique de la machine (1 à 50) |
+| `cycle_number` | int | Compteur de cycles d'usage |
+| `op_setting_1..3` | float | Réglages opérationnels (conservés, non utilisés par les modèles) |
+| `sensor_1..21` | float | Mesures capteurs brutes |
 
-## 3. Hypothèses de simulation
+### `mecha_dataset.csv` (nettoyé)
+
+| Colonne | Type | Unité nominale | Description |
+|---|---|---|---|
+| `machine_id` | string | — | Format `MECHA-USI-XXX` |
+| `timestamp` | datetime | — | Simulé : 1 cycle = 1 heure, à partir du 01/01/2026 |
+| `cycle_number` | int | cycles | Compteur d'usage depuis la mise en service |
+| `temperature_moteur` | float | °C | Depuis `sensor_2` |
+| `temperature_lubrifiant` | float | °C | Depuis `sensor_3` |
+| `temperature_carter` | float | °C | Depuis `sensor_4` |
+| `pression_hydraulique` | float | bar | Depuis `sensor_7` |
+| `vitesse_broche` | float | tr/min | Depuis `sensor_9` |
+| `vibration_axe_x` | float | mm/s | Depuis `sensor_11` |
+| `vibration_axe_y` | float | mm/s | Depuis `sensor_12` |
+| `debit_refroidissement` | float | L/min | Depuis `sensor_14` |
+| `humidite_ambiante` | float | % | Depuis `sensor_15` |
+| `indice_usure_outil` | float | indice | Depuis `sensor_21` |
+| `RUL` | int | cycles (= heures) | Cycles restants avant panne : `cycle_max(machine) - cycle_number` |
+| `risk_level` | catégoriel | — | `a_risque` (RUL ≤ 8), `a_surveiller` (9 à 24), `normal` (> 24) |
+
+**Unités nominales** : elles donnent le sens métier de chaque variable, mais les valeurs simulées restent sur une échelle arbitraire (environ 420 à 620, cf. §4). Elles n'ont pas de signification physique : seules leur évolution et leurs écarts relatifs portent le signal de dégradation.
+
+### `predictions.csv`
+
+| Colonne | Type | Description |
+|---|---|---|
+| `machine_id`, `timestamp`, `cycle_number` | — | Comme ci-dessus |
+| `rul_predit` | int | RUL estimé par le modèle de régression |
+| `risk_level_predit` | catégoriel | Classe prédite par le classifieur (seuil de décision 0,35 sur `a_risque`) |
+| `risk_level_reel` | catégoriel | Classe réelle (pour l'évaluation) |
+| `modele_classification`, `modele_regression` | string | Modèles ayant produit la prédiction (traçabilité) |
+| `capteur_principal` | string | Capteur le plus éloigné de son comportement moyen (score-Z) |
+
+## 4. Hypothèses de simulation
 
 | Hypothèse | Justification |
 |---|---|
-| 1 cycle CMAPSS = 1 heure de fonctionnement | Convention arbitraire pour obtenir un timestamp exploitable ; à ajuster si données réelles disponibles |
-| Unités des capteurs (°C, bar, mm/s...) | Approximations pédagogiques — CMAPSS ne fournit pas d'unité physique réelle |
-| Seuils `risk_level` à l'entraînement : RUL > 50 → normal, 15-50 → à surveiller, < 15 → à risque | Seuils métier du prototype initial. **L'exploitation (alertes + dashboards) applique désormais 24/8**, cf. `docs/12_solution_applicative.md` §3.2 — à réaligner au prochain réentraînement |
-| Génération synthétique de repli | Dégradation non linéaire (`cycle^1.5`) + bruit gaussien par capteur, calibrée pour reproduire un pattern de dégradation crédible |
+| 50 machines, durée de vie tirée entre 120 et 260 cycles | Ordre de grandeur de CMAPSS FD001 |
+| Capteur *i* = 400 + 10·*i* + dégradation + bruit gaussien (σ = 1,5) | Niveau de base propre à chaque capteur, bruit de mesure |
+| Dégradation non linéaire : `(cycle / durée de vie)^1,5` | Usure lente au début, accélérée en fin de vie |
+| 1 cycle = 1 heure de fonctionnement | Convention pour obtenir un horodatage exploitable |
+| Seuils de risque : RUL ≤ 8 → `a_risque`, 9 à 24 → `a_surveiller` | Seuils métier de l'exploitation (alertes, dashboards), cf. `12_solution_applicative.md` §3.2 ; à valider terrain |
 
-## 4. Sécurité des données (DIC)
+## 5. Sécurité des données (DIC)
 
-L'**intégrité** du jeu de données est assurée par les bornes physiques, la winsorisation par machine et la détection de capteur défaillant détaillées en §6, et l'intégrité de l'évaluation par le groupement `GroupKFold` sur `machine_id` (aucune fuite entre apprentissage et test). **Disponibilité** et **confidentialité** relèvent de l'infrastructure : voir `02_volet_rgpd.md` §4.
+L'**intégrité** du jeu de données est assurée par les bornes physiques, la winsorisation par machine et la détection de capteur défaillant détaillées en §7, et l'intégrité de l'évaluation par le groupement `GroupKFold` sur `machine_id` (aucune fuite entre apprentissage et test). **Disponibilité** et **confidentialité** relèvent de l'infrastructure : voir `02_volet_rgpd.md` §4.
 
-## 5. Limites connues
+## 6. Limites connues
 
-- **Origine aéronautique du dataset** : CMAPSS simule des moteurs d'avion, pas des centres d'usinage — l'analogie est une approximation méthodologique assumée, pas une garantie de représentativité physique
-- **Un seul type de machine simulé** : pas de variabilité inter-sites (5 usines MECHA) dans le dataset actuel
-- **Volume** : ~9 200 lignes / 50 machines (repli synthétique) — volume pédagogique, pas un volume industriel réel
-- **Pas de données réelles opérateur/RH** : conforme à la contrainte RGPD du cahier des charges (aucune donnée personnelle)
-- **Seuils de classification arbitraires** : nécessitent validation métier avant tout usage réel
+- **Données synthétiques** : les résultats valident la méthode, pas la performance sur des machines réelles
+- **Signal simplifié** : les 21 capteurs suivent la même forme de dégradation, à des niveaux différents ; aucun capteur ne porte une information propre
+- **Pas de défauts réalistes** : ni valeurs manquantes, ni pannes de capteur, ni historique de maintenance simulés (6 valeurs écrêtées sur 193 200)
+- **Un seul type de machine** : pas de variabilité entre les 5 usines
+- **Volume pédagogique** : 9 200 lignes / 50 machines, loin d'un volume industriel
+- **Classe rare** : `a_risque` ne représente que 4,9 % des lignes
+- **Pas de données personnelles** : conforme à la contrainte RGPD du cahier des charges
 
-## 6. Pipeline ML — résumé
+## 7. Pipeline ML — résumé
 
-| Étape | Méthode | Fichier |
+| Étape | Méthode | Section du notebook |
 |---|---|---|
-| 1. Chargement | CMAPSS réel ou génération de repli | Cellules 1-2 |
-| 2. Traitement valeurs aberrantes | Bornes physiques + winsorisation IQR **par machine** (k=3) | Cellule 3 |
-| 3. Calcul RUL | `cycle_max - cycle_number` par machine | Cellule 4 |
-| 4. Adaptation vocabulaire | Renommage colonnes | Cellule 4 |
-| 5. Label classification | Seuillage RUL → `risk_level` | Cellule 4 |
-| 6. Split train/test | **Par `machine_id`** (évite fuite de données) | Cellule 5 |
-| 7. Modèle classification | 6 modèles comparés (dont XGBoost) | Cellule 6 |
-| 8. Modèle régression | 5 modèles comparés (dont XGBoost) | Cellule 7 |
-| 9. Export résultats | `predictions.csv` (format prêt PostgreSQL) | Cellule 11 |
+| 1. Chargement | CMAPSS si présent, sinon génération synthétique ; export `data/mecha_dataset_raw.csv` | 2 |
+| 2. Valeurs aberrantes | Bornes physiques + winsorisation IQR **par machine** (k = 3) | 3 |
+| 3. Alerte capteur | ≥ 3 valeurs aberrantes sur un même capteur | 4 |
+| 4. Préparation | RUL, renommage, niveau de risque ; export `data/mecha_dataset.csv` | 5 |
+| 5. Split train/test | **Par machine** (40 / 10), pour éviter la fuite de données | 6 |
+| 6. Comparaison | 6 classifieurs, 5 régresseurs | 7, 8 |
+| 7. Validation croisée | `GroupKFold` 5 folds par machine ; sélection des modèles | 9, 10 |
+| 8. Seuil de décision | Seuil sur P(`a_risque`) choisi en validation croisée | 12 |
+| 9. Export | `data/predictions.csv`, modèles `.joblib` + `metadata.json` | 15, 17 |
+| 10. Modes d'entraînement | Lot, mini-lot, online | 18 |
 
 ### Traitement des valeurs aberrantes — détail
 
 Deux règles appliquées, dans cet ordre :
 
-1. **Bornes physiques absolues** : toute valeur capteur négative est supprimée (impossible physiquement, ex. température ou vibration négative)
-2. **Winsorisation IQR par machine** (`k=3`, seuil large) : les valeurs hors `[Q1 - 3×IQR, Q3 + 3×IQR]` sont écrêtées vers la borne, **calculées machine par machine** — pas globalement
+1. **Bornes physiques absolues** : toute ligne contenant une valeur capteur négative est supprimée (impossible physiquement)
+2. **Winsorisation IQR par machine** (`k = 3`, seuil large) : les valeurs hors `[Q1 - 3×IQR, Q3 + 3×IQR]` sont écrêtées vers la borne, **calculées machine par machine** — pas globalement
 
 **Pourquoi par machine et pas globalement** : une vibration élevée en toute fin de vie d'une machine est un signal normal (dégradation), pas une anomalie. La calculer par machine évite de supprimer le signal qu'on cherche justement à prédire.
 
-**Pourquoi winsorisation (écrêtage) et pas suppression de ligne** : supprimer une ligne casserait la continuité temporelle utilisée pour le calcul du RUL. L'écrêtage neutralise l'erreur de mesure tout en gardant la trajectoire complète.
+**Pourquoi écrêter plutôt que supprimer** : supprimer une ligne casserait la continuité temporelle utilisée pour le calcul du RUL. L'écrêtage neutralise l'erreur de mesure tout en gardant la trajectoire complète.
 
 ### Alerte capteur défaillant
 
-**Distinction fondamentale** :
-
 | Type d'alerte | Cause | Équipe concernée |
 |---|---|---|
-| `risk_level = a_risque` | Dégradation **mécanique** réelle de la machine | Maintenance mécanique |
+| Machine `a_risque` | Dégradation **mécanique** réelle de la machine | Maintenance mécanique |
 | Alerte capteur | Dysfonctionnement **instrumental** (câble, calibration, interférence) | Instrumentation / DSI |
 
-**Règle** : si un même capteur, sur une même machine, produit **3 valeurs aberrantes ou plus** (détectées par la winsorisation), une alerte capteur est levée — indépendamment du niveau de risque de la machine.
+**Règle** : si un même capteur, sur une même machine, produit **3 valeurs aberrantes ou plus**, une alerte capteur est levée — indépendamment du niveau de risque de la machine. Table PostgreSQL `{site}.alertes_capteur`, endpoint `GET/POST /alertes-capteurs/{site}`, export `outputs/alertes_capteurs.csv`.
 
-Table PostgreSQL dédiée : `{site}.alertes_capteur` (colonnes : `machine_id`, `capteur`, `nb_aberrations`, `premier_cycle`, `dernier_cycle`).
-Endpoint API : `GET/POST /alertes-capteurs/{site}`.
-
-Export notebook : `outputs/alertes_capteurs.csv`.
-
-## 7. Résultats obtenus (dataset de repli synthétique)
+## 8. Résultats obtenus
 
 | Modèle | Métrique | Valeur |
 |---|---|---|
-| Classification (`risk_level`) | Accuracy | 0.85 |
-| Classification | F1-score classe `a_risque` | 0.68 |
-| Régression (`RUL`) | MAE | 18.9 cycles |
-| Régression (`RUL`) | R² | 0.839 |
+| Classification (Logistic Regression, seuil 0,35) | Rappel `a_risque` (test) | 0,867 |
+| | Taux de faux positifs `a_risque` (test) | 9,0 % |
+| | Précision `a_risque` (test) | 0,33 |
+| Régression RUL (Random Forest) | MAE, validation croisée | 19,9 ± 0,2 cycles |
+| | R², validation croisée | 0,824 |
 
-**Interprétation** : la classe `a_risque` (la plus critique métier) a un rappel de 0.68 — un tiers des situations à risque ne sont pas détectées. C'est une limite à corriger avant tout déploiement réel (ex. rééquilibrage des classes plus poussé, seuils de décision ajustés, features supplémentaires).
+**Interprétation** : les deux critères du client sont tenus (rappel ≥ 80 %, faux positifs < 15 %), mais deux alertes `a_risque` sur trois sont de fausses alertes : c'est le prix d'un rappel élevé sur une classe rare. Détail : `07_justification_modele.md` et `09_validation_deploiement.md`.
 
-## 8. Reproductibilité
+## 9. Reproductibilité
+
+Depuis `mecha-ia/` :
 
 ```bash
-pip install pandas numpy scikit-learn matplotlib jupyter nbconvert --break-system-packages
+pip install -r scripts/requirements.txt matplotlib jupyter
 jupyter nbconvert --to notebook --execute --inplace mecha_maintenance_predictive.ipynb
 ```
 
-Sorties générées dans `outputs/` : `mecha_dataset_raw.csv`, `mecha_dataset.csv`, `predictions.csv`.
+Sorties : `data/` (jeux de données, versionnés) et `outputs/` (modèles et benchmarks, non versionnés).

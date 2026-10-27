@@ -32,7 +32,7 @@ Introduire une solution IA dans un environnement industriel où les décisions r
 
 | Public | Format | Durée | Contenu |
 |---|---|---|---|
-| Responsables maintenance | Atelier présentiel | 1 jour | Interprétation des scores, gestion des alertes, retours terrain |
+| Responsables maintenance | Atelier présentiel | 1 jour | Lecture du RUL et des niveaux de risque, gestion des alertes, retours terrain |
 | Techniciens | Session terrain | 2h × 2 | Prise en main dashboard, workflow alerte |
 | Direction | Démonstration | 1h | Lecture du TRS consolidé, indicateurs stratégiques |
 | DSI | Formation technique | 2 jours | Docker, Postgres, Grafana, procédures d'exploitation |
