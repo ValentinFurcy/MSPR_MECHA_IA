@@ -193,7 +193,7 @@ Note d'information à afficher en atelier + insertion dans le règlement intéri
 
 ### 2.8 Limites du prototype actuel
 
-Comme les données sont synthétiques, aucune obligation RGPD ne s'applique **au prototype**. Toutefois, le code est conçu pour supporter la pseudonymisation dès le premier passage sur données réelles (module `cleaning/pseudonymize.py` prévu).
+Comme les données sont synthétiques, aucune obligation RGPD ne s'applique **au prototype**. La pseudonymisation décrite en §2.3.2 n'est pas implémentée : elle devra être ajoutée à la préparation des données, et validée par le DPO, avant tout passage sur des données réelles.
 
 ---
 
@@ -278,7 +278,7 @@ Les trois fichiers sont régénérés à l'identique par le notebook (seed fixe)
 
 ### 3.5 Sécurité des données (DIC)
 
-L'**intégrité** du jeu de données est assurée par les bornes physiques, la winsorisation par machine et la détection de capteur défaillant détaillées en §7, et l'intégrité de l'évaluation par le groupement `GroupKFold` sur `machine_id` (aucune fuite entre apprentissage et test). **Disponibilité** et **confidentialité** relèvent de l'infrastructure : voir `02_donnees.md` §2.4.
+L'**intégrité** du jeu de données est assurée par les bornes physiques, la winsorisation par machine et la détection de capteur défaillant détaillées en §3.7, et l'intégrité de l'évaluation par le groupement `GroupKFold` sur `machine_id` (aucune fuite entre apprentissage et test). **Disponibilité** et **confidentialité** relèvent de l'infrastructure : voir §2.4.
 
 ### 3.6 Limites connues
 

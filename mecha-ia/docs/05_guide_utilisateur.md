@@ -25,7 +25,7 @@ La solution surveille en continu les machines de production et signale **avant q
 
 ### 3.1 Consultation du dashboard (Grafana)
 1. Se connecter à `http://mecha-ia.local:3000`
-2. Sélectionner son site et sa ligne
+2. Sélectionner son site (sélecteur *Site* en haut du dashboard)
 3. Consulter la liste *Machines à intervenir*, triée du RUL le plus faible au plus élevé : **vert** (normal), **orange** (à surveiller), **rouge** (à risque)
 
 ### 3.2 Réception d'une alerte
@@ -68,7 +68,7 @@ la décision finale.
 ## 5. Limites et conditions d'usage
 
 - **Machines couvertes** : uniquement les centres d'usinage équipés IoT (phase pilote : 3 machines d'un site France)
-- **Historique nécessaire** : le modèle a besoin de 30 jours de données stables pour une nouvelle machine
+- **Nouvelle machine** : le modèle prédit à partir du dernier relevé des capteurs, mais il n'a été entraîné que sur des centres d'usinage ; une machine d'un autre type demande un réentraînement avant d'être suivie
 - **Fiabilité dégradée** si un capteur est HS : il apparaît dans le panneau *Alertes capteur*
 - **Pas d'usage en mode dégradé réseau** : les alertes peuvent être retardées
 
