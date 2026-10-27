@@ -8,4 +8,5 @@ outputs/
 pg_data/
 grafana_data/
 influx_data/
-venv/.pytest_cache/
+venv/
+.pytest_cache/
