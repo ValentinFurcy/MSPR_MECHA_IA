@@ -15,7 +15,7 @@ Capteurs IoT → MQTT → Kafka → InfluxDB → Pipeline (clean+prédit) → Po
                          (simule l'IoT)
 ```
 
-**Note** : MQTT/Kafka restent théoriques (voir `docs/01_choix_techniques.md`).
+**Note** : MQTT/Kafka restent théoriques (voir `docs/03_architecture_technique.md` §1).
 `scripts/load_sensors_to_influx.py` en tient lieu : il réinjecte les données
 déjà générées comme si elles provenaient des capteurs, avec des timestamps réels.
 
@@ -126,21 +126,24 @@ MSPR_MECHA_IA/mecha-ia/            # racine des commandes ci-dessous
 │   ├── alertes_capteurs.csv
 │   └── models/                     # Modèles entraînés exportés (.joblib + metadata.json)
 └── docs/                           # Documentation
-    ├── 01_choix_techniques.md
-    ├── 02_volet_rgpd.md
-    ├── 03_entretien_client.md
-    ├── 04_guide_utilisateur.md
-    ├── 05_conduite_changement.md
-    ├── 06_documentation_dataset_ml.md
-    ├── 07_justification_modele.md
-    ├── 08_procedure_entrainement.md
-    ├── 09_validation_deploiement.md
-    ├── 10_cicd_deploiement.md
-    ├── 11_cartographie_donnees.md
-    ├── 12_solution_applicative.md
+    ├── 01_besoin_et_conduite_du_changement.md
+    ├── 02_donnees.md
+    ├── 03_architecture_technique.md
+    ├── 04_modeles_et_validation.md
+    ├── 05_guide_utilisateur.md
     ├── architecture_mecha.png
     └── architecture_mecha.py       # Génère le schéma d'architecture
 ```
+
+## Documentation et attendus de la consigne
+
+| Document | Contenu | Livrable / compétence couverte |
+|---|---|---|
+| `docs/01_besoin_et_conduite_du_changement.md` | Entretien client simulé, synthèse des besoins ; acteurs, messages, formation, déploiement progressif | Compte-rendu client ; conduite du changement |
+| `docs/02_donnees.md` | Cartographie et ETL ; RGPD, rôle du DPO, concept DIC ; dictionnaire, hypothèses et limites du jeu de données | Analyser le corpus ; structurer les données (RGPD, DIC) ; documentation du dataset |
+| `docs/03_architecture_technique.md` | Schéma et choix techniques ; solution applicative (intégration, seuils, écrans) ; CI | Modéliser l'architecture ; solution applicative ; CI |
+| `docs/04_modeles_et_validation.md` | Comparaison des modèles, seuil de décision ; lot / mini-lot / online ; validation globale et projection industrielle | Évaluer, concevoir et analyser les modèles ; entraînement ; test et validation ; infrastructure |
+| `docs/05_guide_utilisateur.md` | Ce que fait l'outil, lecture du RUL, limites | Guide utilisateur métier |
 
 ## Intégration continue (CI)
 
@@ -199,4 +202,4 @@ Sites valides : `site_fr1`, `site_fr2`, `site_fr3`, `site_es1`, `site_es2`
 | Classification état machine | Logistic Regression (seuil de décision 0,35) | Rappel `a_risque` / faux positifs (test) | 0,867 / 9,0 % |
 | Prédiction RUL | Random Forest Regressor | MAE (validation croisée) | 19,9 cycles |
 
-Justification complète : `docs/07_justification_modele.md`
+Justification complète : `docs/04_modeles_et_validation.md` §1

@@ -133,7 +133,7 @@ ALTER ROLE api_rw SET search_path TO site_fr1, shared;
 --
 -- Les dashboards passent donc par cette fonction plutôt que par la colonne.
 -- La sortie du classifieur reste stockée telle quelle : elle sert à tracer le
--- comportement du modèle et à comparer les deux approches (cf. docs/07).
+-- comportement du modèle et à comparer les deux approches (cf. docs/04_modeles_et_validation.md §1).
 --
 -- Bornes métier (1 cycle = 1 heure), alignées sur les seuils d'alerte de
 -- l'API (SEUIL_A_RISQUE / SEUIL_A_SURVEILLER dans src/api/main.py) :

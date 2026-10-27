@@ -2,7 +2,7 @@
 
 En production, ce rôle est joué par la chaîne Capteurs -> MQTT -> Kafka ->
 InfluxDB (voir architecture). Cette chaîne reste théorique dans ce prototype
-(cf. docs/01_choix_techniques.md). Ce script en tient lieu : il relit les
+(cf. docs/03_architecture_technique.md §1). Ce script en tient lieu : il relit les
 données brutes livrées (data/mecha_dataset_raw.csv, exportées par le notebook) et
 les injecte dans InfluxDB comme si elles venaient réellement des capteurs,
 avec des timestamps réels et incrémentaux.
