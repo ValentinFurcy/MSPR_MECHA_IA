@@ -124,12 +124,8 @@
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 1
-              },
-              {
                 "color": "red",
-                "value": 3
+                "value": 1
               }
             ]
           }
@@ -189,7 +185,7 @@
               },
               {
                 "color": "orange",
-                "value": 5
+                "value": 1
               }
             ]
           }
@@ -351,7 +347,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT machine_id AS \"Machine\",\n       rul_predit AS \"RUL prédit (cycles)\",\n       risk_level_predit AS \"Niveau\",\n       capteur_principal AS \"Capteur à inspecter\",\n       \"timestamp\" AS \"Dernière prédiction\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         shared.niveau_depuis_rul(rul_predit) AS risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit IN ('a_risque', 'a_surveiller')\nORDER BY rul_predit ASC",
+          "rawSql": "SELECT machine_id AS \"Machine\",\n       rul_predit AS \"RUL prédit (h)\",\n       risk_level_predit AS \"Niveau\",\n       capteur_principal AS \"Capteur à inspecter\",\n       \"timestamp\" AS \"Dernière prédiction\"\nFROM (SELECT DISTINCT ON (machine_id)\n         machine_id, \"timestamp\", cycle_number, rul_predit,\n         shared.niveau_depuis_rul(rul_predit) AS risk_level_predit, capteur_principal\n  FROM ${site}.predictions\n  ORDER BY machine_id, \"timestamp\" DESC) d\nWHERE risk_level_predit IN ('a_risque', 'a_surveiller')\nORDER BY rul_predit ASC",
           "datasource": {
             "type": "postgres",
             "uid": "mecha_postgres"
@@ -394,7 +390,46 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "RUL prédit (cycles)"
+              "options": "Niveau"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "a_risque": {
+                        "text": "À risque",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "a_surveiller": {
+                        "text": "À surveiller",
+                        "color": "orange",
+                        "index": 1
+                      },
+                      "normal": {
+                        "text": "Normal",
+                        "color": "green",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RUL prédit (h)"
             },
             "properties": [
               {
@@ -590,7 +625,7 @@
           "refId": "A",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT date_trunc('hour', \"timestamp\") AS time,\n       avg(rul_predit) AS \"RUL moyen (cycles)\"\nFROM ${site}.predictions\nWHERE $__timeFilter(\"timestamp\")\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT date_trunc('hour', \"timestamp\") AS time,\n       avg(rul_predit) AS \"RUL moyen (h)\"\nFROM ${site}.predictions\nWHERE $__timeFilter(\"timestamp\")\nGROUP BY 1\nORDER BY 1",
           "datasource": {
             "type": "postgres",
             "uid": "mecha_postgres"

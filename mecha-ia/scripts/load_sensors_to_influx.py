@@ -10,6 +10,12 @@ avec des timestamps réels et incrémentaux.
 Usage :
     python scripts/load_sensors_to_influx.py
     python scripts/load_sensors_to_influx.py --speed 0.01   # pause entre points (secondes)
+    python scripts/load_sensors_to_influx.py --fin-aleatoire   # parc réaliste
+
+Par défaut, chaque machine est rejouée jusqu'à sa panne (le jeu de données est
+« run-to-failure ») : toutes les machines apparaissent en fin de vie. Avec
+--fin-aleatoire, chaque machine est arrêtée à un instant tiré au hasard dans sa
+vie, comme dans une usine réelle où peu de machines sont proches de la panne.
 """
 
 import argparse
@@ -17,6 +23,7 @@ import os
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -29,7 +36,7 @@ INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "raw_data")
 RAW_CSV = Path("data/mecha_dataset_raw.csv")
 
 
-def main(speed: float, site: str):
+def main(speed: float, site: str, fin_aleatoire: bool):
     if not RAW_CSV.exists():
         raise FileNotFoundError(
             f"{RAW_CSV} introuvable — lance la commande depuis mecha-ia/ "
@@ -37,6 +44,13 @@ def main(speed: float, site: str):
         )
 
     df = pd.read_csv(RAW_CSV)
+    if fin_aleatoire:
+        # Instant d'arrêt tiré uniformément dans la vie de chaque machine
+        # (graine fixe : le même parc à chaque exécution).
+        rng = np.random.default_rng(42)
+        duree_de_vie = df.groupby("machine_id")["cycle_number"].max()
+        arret = {m: int(rng.integers(1, n + 1)) for m, n in duree_de_vie.items()}
+        df = df[df["cycle_number"] <= df["machine_id"].map(arret)].reset_index(drop=True)
     sensor_cols = [c for c in df.columns if c.startswith("sensor_")]
 
     # Cycle max par machine : nécessaire pour calculer un timestamp cohérent
@@ -87,5 +101,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--speed", type=float, default=0.0, help="Pause en secondes entre lots de 500 points")
     parser.add_argument("--site", default="site_fr1", help="Tag de site à appliquer")
+    parser.add_argument("--fin-aleatoire", action="store_true",
+                        help="Arrête chaque machine à un instant aléatoire de sa vie (parc réaliste)")
     args = parser.parse_args()
-    main(args.speed, args.site)
+    main(args.speed, args.site, args.fin_aleatoire)

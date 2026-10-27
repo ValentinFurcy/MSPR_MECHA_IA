@@ -79,12 +79,8 @@
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 1
-              },
-              {
                 "color": "red",
-                "value": 3
+                "value": 1
               }
             ]
           }
@@ -171,7 +167,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT 'site_fr1' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_fr2' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr2.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_fr3' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr3.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_es1' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_es1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_es2' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (cycles)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_es2.predictions ORDER BY machine_id, \"timestamp\" DESC) d",
+          "rawSql": "SELECT 'site_fr1' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (h)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_fr2' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (h)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr2.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_fr3' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (h)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_fr3.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_es1' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (h)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_es1.predictions ORDER BY machine_id, \"timestamp\" DESC) d\nUNION ALL\nSELECT 'site_es2' AS \"Site\",\n       count(*) AS \"Machines suivies\",\n       round(avg(rul_predit)) AS \"RUL moyen (h)\"\nFROM (SELECT DISTINCT ON (machine_id) machine_id, rul_predit\n      FROM site_es2.predictions ORDER BY machine_id, \"timestamp\" DESC) d",
           "datasource": {
             "type": "postgres",
             "uid": "mecha_postgres"

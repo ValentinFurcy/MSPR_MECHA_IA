@@ -41,6 +41,8 @@ jupyter nbconvert --to notebook --execute --inplace mecha_maintenance_predictive
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 # 5. Simuler l'envoi des capteurs vers InfluxDB
+#    (toutes les machines rejouées jusqu'à la panne ; ajouter --fin-aleatoire
+#     pour un parc réaliste où peu de machines sont proches de la panne)
 docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pipeline python scripts/load_sensors_to_influx.py
 
 # 6. Lancer le pipeline (InfluxDB -> prédiction -> PostgreSQL)

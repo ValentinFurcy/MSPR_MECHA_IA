@@ -112,7 +112,7 @@ def insert_prediction(site: str, pred: PredictionIn):
         message = f"Intervention nécessaire dans les {SEUIL_CRITIQUE} prochaines heures (RUL estimé : {pred.rul_predit}h){capteur_suffix}"
     elif pred.rul_predit <= SEUIL_A_RISQUE:
         niveau_alerte = "urgent"
-        message = f"RUL prédit : {pred.rul_predit} cycles — intervention à planifier{capteur_suffix}"
+        message = f"RUL estimé : {pred.rul_predit}h — intervention à planifier{capteur_suffix}"
 
     if niveau_alerte:
         cur.execute(f"""
